@@ -21,7 +21,7 @@ MomentumRoot / TodayView / NightView → explicit actions
        └─ @AppStorage → reminder enabled + local time
 ```
 
-`MomentumCore` contains models, calendar rules, persistence actions, and the pure timer state machine. The executable module contains views, app lifetime, the timer's ticking adapter, and OS notification integration. Tests target the core independently of UI and notification permission.
+`MomentumCore` contains models, calendar rules, persistence actions, and the pure timer state machine. The executable module contains views, app lifetime, the timer's ticking adapter, and OS notification integration. Core tests run independently of UI and notification permission; a separate AppKit hosting test verifies that the popover retains a usable content viewport at its minimum window size.
 
 ## Persistence
 

@@ -8,6 +8,7 @@ let package = Package(
     targets: [
         .target(name: "MomentumCore"),
         .executableTarget(name: "Momentum", dependencies: ["MomentumCore"]),
-        .testTarget(name: "MomentumCoreTests", dependencies: ["MomentumCore"])
+        .testTarget(name: "MomentumCoreTests", dependencies: ["MomentumCore"]),
+        .testTarget(name: "MomentumInterfaceTests", dependencies: ["Momentum"])
     ]
 )

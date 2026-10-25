@@ -9,7 +9,7 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-      - name: Test model, persistence, and clock behavior
+      - name: Test persistence, clocks, and popover layout
         run: swift test
       - name: Build native app bundle
         run: bash scripts/build-app.sh release

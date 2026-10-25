@@ -19,44 +19,10 @@ struct MomentumRoot: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Momentum").font(.system(size: 24, weight: .medium))
-                    Text(Date.now, format: .dateTime.weekday(.wide).month(.abbreviated).day())
-                        .foregroundStyle(MomentumTheme.muted)
-                }
-                Spacer()
-                Image(systemName: "circle.lefthalf.filled")
-                    .font(.system(size: 24, weight: .light)).accessibilityHidden(true)
-            }
-            Picker("Your day", selection: $tab) {
-                Text("Today").tag(0)
-                Text("Night Shutdown").tag(1)
-            }.pickerStyle(.segmented)
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    if tab == 0 { TodayView(store: store, focus: focus) }
-                    else { NightView(store: store, reminders: reminders) }
-                }.padding(.bottom, 4)
-            }.frame(maxHeight: 480)
-
-            HStack {
-                Text("A little less friction. A little more intention.")
-                    .font(.system(size: 11)).foregroundStyle(MomentumTheme.muted)
-                Spacer(minLength: 4)
-                Button("Quit") { NSApp.terminate(nil) }
-                    .font(.system(size: 12)).keyboardShortcut("q")
-            }
+        MomentumPopover(tab: $tab) {
+            if tab == 0 { TodayView(store: store, focus: focus) }
+            else { NightView(store: store, reminders: reminders) }
         }
-        .padding(24)
-        .frame(width: 424)
-        .font(.system(size: 14))
-        .foregroundStyle(MomentumTheme.ink)
-        .background(MomentumTheme.canvas)
-        .tint(MomentumTheme.primary)
-        .preferredColorScheme(.light)
         .onAppear { refresh() }
         .onReceive(focus.$now) { now in
             if store.dayKey != DayClock.dayKey(for: now) || store.nightKey != DayClock.nightKey(for: now) {
@@ -78,6 +44,59 @@ struct MomentumRoot: View {
 
     private func refresh() { store.refresh(); configureReminder() }
     private func configureReminder() { reminders.configure(enabled: nightEnabled, hour: nightHour, minute: nightMinute) }
+}
+
+/// Own the menu extra's ideal dimensions; a maximum alone lets a ScrollView collapse.
+struct MomentumPopover<Content: View>: View {
+    @Binding var tab: Int
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Momentum").font(.system(size: 24, weight: .medium))
+                    Text(Date.now, format: .dateTime.weekday(.wide).month(.abbreviated).day())
+                        .foregroundStyle(MomentumTheme.muted)
+                }
+                Spacer()
+                Image(systemName: "circle.lefthalf.filled")
+                    .font(.system(size: 24, weight: .light)).accessibilityHidden(true)
+            }
+            Picker("Your day", selection: $tab) {
+                Text("Today").tag(0)
+                Text("Night Shutdown").tag(1)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(maxWidth: .infinity)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    content
+                }.padding(.bottom, 4)
+            }
+            // MenuBarExtra may measure the minimum size first. A max-only frame
+            // reports zero here, hiding the entire task/timer/checklist region.
+            .frame(maxWidth: .infinity)
+            .frame(height: 400)
+
+            HStack {
+                Text("A little less friction. A little more intention.")
+                    .font(.system(size: 11)).foregroundStyle(MomentumTheme.muted)
+                Spacer(minLength: 4)
+                Button("Quit") { NSApp.terminate(nil) }
+                    .font(.system(size: 12)).keyboardShortcut("q")
+            }
+        }
+        .padding(24)
+        .frame(width: 424, height: 600)
+        .font(.system(size: 14))
+        .foregroundStyle(MomentumTheme.ink)
+        .background(MomentumTheme.canvas)
+        .tint(MomentumTheme.primary)
+        .preferredColorScheme(.light)
+    }
 }
 
 struct TodayView: View {

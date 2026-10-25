@@ -21,3 +21,11 @@ Notification scheduling is implemented through `UNUserNotificationCenter`; actua
 ## Distribution status
 
 This is a local development build, ad-hoc signed, not notarized. The included archive is for the architecture on which it was built, not a universal binary. Gatekeeper may require the normal user-initiated approval flow when the app is transferred to another Mac. Developer ID signing, notarization, installer packaging, and App Store distribution remain planned.
+
+## Popover sizing correction
+
+A user-supplied screenshot showed the app launched with its header and footer visible but the task/timer region collapsed. The scroll view had a maximum height without a minimum or fixed height, allowing the menu host's compressed sizing pass to hide it. The popover now declares a 424 × 600 pt size and a 400 pt scroll viewport. The redundant external picker label is hidden to leave room for both navigation segments.
+
+An AppKit hosting regression test exercises the real Today view at the containing window's minimum content size. It checks that the task/timer viewport remains usable and the window stays within a laptop-friendly height. This is an automated layout check, not a claim of live interactive verification in the menu bar.
+
+The regression test fails against the previous sizing (205 pt minimum window height and 0 pt viewport) and passes with the correction. The full suite now passes **15 tests, zero failures**. The rebuilt development app is version 0.1.1, build 2.

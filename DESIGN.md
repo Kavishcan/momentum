@@ -46,10 +46,10 @@ Use natural multiline layout and default native line heights. Do not tighten tra
 ## Layout and spacing
 
 - Base unit: 4 pt. Preferred scale: 4, 8, 12, 16, 20, 24, 32, 48, 64.
-- Popover: 424 pt wide; 24 pt outer padding; 20 pt between major groups.
+- Popover: 424 × 600 pt; 24 pt outer padding; 20 pt between major groups. Explicit dimensions prevent a menu host's minimum-size measurement from collapsing the contents.
 - Header: title and date on the left; a single monochrome symbol on the right.
 - Two native segmented tabs: Today and Night Shutdown.
-- Content scrolls within a maximum 480 pt viewport, keeping the header and Quit control reachable on a typical laptop display.
+- Content scrolls within a 400 pt viewport, keeping the header and Quit control reachable on a typical laptop display. The navigation picker hides its redundant external label so both segments fit.
 - Cards: 20 pt padding, 16 pt internal spacing, no heavy shadow or nested dashboard panels.
 - Rows: 8 pt horizontal gaps. Checkbox hit areas are 32 × 36 pt; edit/select targets are 28 × 32 pt. These are mouse-oriented macOS targets, not a claim of universal 44 pt touch compliance.
 - Primary buttons: minimum 40 pt height, 16 pt horizontal padding. Native field and secondary button metrics remain native.
