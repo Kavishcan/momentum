@@ -4,6 +4,16 @@ A native, local-first macOS app for your Daily Three, 10/25-minute focus session
 
 **macOS 14+ · SwiftUI · SQLite · no account · no network backend**
 
+## Download
+
+**[Download Momentum for Mac (.dmg)](https://github.com/Kavishcan/momentum/releases/latest/download/Momentum-macos-universal.dmg)**
+
+Apple Silicon and Intel · macOS 14+
+
+[ZIP alternative](https://github.com/Kavishcan/momentum/releases/latest/download/Momentum-macos-universal.zip) · [Checksums](https://github.com/Kavishcan/momentum/releases/latest/download/SHA256SUMS) · [All releases](https://github.com/Kavishcan/momentum/releases)
+
+This repository is private: sign in to a GitHub account with access to download. Open the DMG and drag **Momentum.app** into **Applications**. Quit an older Momentum first; your local database is retained when updating. This is an ad-hoc signed development build, not notarized by Apple.
+
 ## Open the app
 
 Quit any older Momentum instance first, then open `build/Momentum.app`. Version 0.3 opens a normal window and appears in the Dock. The M-square icon in the menu bar provides quick controls and **Open Momentum**. Closing the window keeps the timer running; quitting preserves the active deadline or paused remainder for next launch.
@@ -22,7 +32,7 @@ bash scripts/build-app.sh release
 open build/Momentum.app
 ```
 
-`Package.swift` opens in Xcode for development. The build script uses a temporary compiler directory to avoid File Provider signing metadata and packages `build/Momentum-macos-arm64.zip` on Apple Silicon (or `x86_64` on Intel). `MOMENTUM_BUILD_PATH` overrides the compiler directory. Use the app bundle rather than `swift run` for notification identity.
+`Package.swift` opens in Xcode for development. The build script uses a temporary compiler directory to avoid File Provider signing metadata and packages `build/Momentum-macos-arm64.zip` on Apple Silicon (or `x86_64` on Intel). Use `bash scripts/build-dmg.sh universal` to build a DMG and ZIP for both architectures, or pass `arm64`/`x86_64` for one. `MOMENTUM_BUILD_PATH` overrides the compiler directory. Use the app bundle rather than `swift run` for notification identity.
 
 ## Appearance and icon
 

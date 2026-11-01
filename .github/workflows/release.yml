@@ -1,0 +1,44 @@
+name: Publish macOS download
+on:
+  push:
+    tags:
+      - 'v*'
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check release tag matches app version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          app_version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' Resources/Info.plist)
+          test "$RELEASE_TAG" = "v$app_version"
+      - name: Test database workflows and native layouts
+        run: swift test --scratch-path "$RUNNER_TEMP/MomentumTests"
+      - name: Build and verify universal installer
+        run: bash scripts/build-dmg.sh universal
+      - name: Create checksums
+        working-directory: build
+        run: shasum -a 256 Momentum-macos-universal.dmg Momentum-macos-universal.zip > SHA256SUMS
+      - name: Publish release and downloads
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" \
+            build/Momentum-macos-universal.dmg \
+            build/Momentum-macos-universal.zip \
+            build/SHA256SUMS \
+            --verify-tag --latest \
+            --title "Momentum ${RELEASE_TAG#v}" \
+            --notes-file RELEASE_NOTES.md

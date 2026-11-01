@@ -2,15 +2,21 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 configuration="${1:-debug}"
+architecture="${2:-$(uname -m)}"
+case "$architecture" in
+  arm64|x86_64) architecture_flags=(--arch "$architecture") ;;
+  universal) architecture_flags=(--arch arm64 --arch x86_64) ;;
+  *) echo "Architecture must be arm64, x86_64, or universal." >&2; exit 1 ;;
+esac
 if [[ "$configuration" != debug && "$configuration" != release ]]; then
-  echo "Usage: $0 [debug|release]" >&2
+  echo "Usage: $0 [debug|release] [arm64|x86_64|universal]" >&2
   exit 1
 fi
 # Keep compiler output out of synced folders that add signing-breaking Finder metadata.
 checkout_key="$(printf '%s' "$PWD" | shasum -a 256 | cut -c 1-12)"
 build_path="${MOMENTUM_BUILD_PATH:-${TMPDIR:-/tmp}/momentum-build-$checkout_key}"
-swift build -c "$configuration" --scratch-path "$build_path"
-binary_dir="$(swift build -c "$configuration" --scratch-path "$build_path" --show-bin-path)"
+swift build -c "$configuration" --scratch-path "$build_path" "${architecture_flags[@]}"
+binary_dir="$(swift build -c "$configuration" --scratch-path "$build_path" "${architecture_flags[@]}" --show-bin-path)"
 stage_dir="$(mktemp -d "${TMPDIR:-/tmp}/momentum-bundle.XXXXXX")"
 next_app="$PWD/build/.Momentum-next-$$.app"
 trap 'rm -rf "$stage_dir" "$next_app"' EXIT
@@ -22,7 +28,7 @@ cp Resources/Info.plist "$staged_app/Contents/Info.plist"
 cp Resources/AppIcon.icns "$staged_app/Contents/Resources/AppIcon.icns"
 codesign --force --sign - "$staged_app"
 codesign --verify --deep --strict "$staged_app"
-archive="$PWD/build/Momentum-macos-$(uname -m).zip"
+archive="$PWD/build/Momentum-macos-$architecture.zip"
 ditto -c -k --keepParent --norsrc --noextattr "$staged_app" "$archive"
 # Replace the bundle as a whole instead of modifying a running executable in place.
 ditto --norsrc --noextattr "$staged_app" "$next_app"

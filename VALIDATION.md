@@ -39,3 +39,9 @@ The old 0.1 implementation passed narrower core tests but suffered a collapsed p
 The interface was restyled toward a Notion-inspired document workspace. All 35 existing checks passed again, including the isolated legacy migration case. Updated native renderings were inspected in light/dark appearance, with long task titles and at minimum window size. No database schema or persistence logic changed.
 
 The original M icon was generated from Core Graphics paths and packaged as a multi-resolution ICNS file, with a 1024 px PNG preview. Icon generation was completed using the standard macOS icon tools. The app bundle is verified after packaging, including its declared icon resource. Live Dock/Finder icon refresh depends on closing the older app instance and reopening the rebuilt bundle.
+
+## Downloadable installer
+
+A universal app was built with both arm64 and x86_64 slices; both Mach-O slices declare macOS 14.0 as their minimum OS. The compressed DMG passed `hdiutil verify`. It was mounted read-only, and the contained app passed deep/strict signature verification and architecture checks. The Applications symlink and installation instructions were present, and the image was detached successfully. This verifies packaging and structure, not execution on Intel hardware or Developer ID notarization.
+
+Release publishing is handled by a version-tagged GitHub Actions workflow, with a checked app/tag version match, universal DMG and ZIP, and SHA-256 checksums. README download links point to the latest published release assets.
