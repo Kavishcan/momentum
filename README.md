@@ -1,50 +1,59 @@
 # Momentum
 
-A calm, local-first macOS menu-bar app for choosing your Daily Three, starting a small focus session, and putting the day down at night.
+A native, local-first macOS app for your Daily Three, 10/25-minute focus sessions, and a calmer Night Shutdown.
 
-**Native SwiftUI · macOS 14+ · no account · no third-party dependencies**
+**macOS 14+ · SwiftUI · SQLite · no account · no network backend**
 
-## Run locally
+## Open the app
 
-Requires a Mac with Xcode 15+ (Swift 5.9+) and the macOS SDK. Open `Package.swift` in Xcode to browse/debug the package. For normal use, build the bundled app so notifications have a stable application identity:
+Quit any older Momentum instance first, then open `build/Momentum.app`. Version 0.2 opens a normal window and appears in the Dock. The half-filled circle in the menu bar provides quick controls and **Open Momentum**. Closing the window keeps the timer running; quitting preserves the active deadline or paused remainder for next launch.
+
+For a prebuilt ZIP, extract it outside a cloud-synced folder and open the extracted `Momentum.app`. Local builds are ad-hoc signed, not notarized. The archive is built for the machine's architecture, not universally for both Intel and Apple Silicon.
+
+## Build and test
+
+Requires Xcode 15+ / Swift 5.9+, the macOS SDK, and the system SQLite library. No third-party packages or database installation are needed.
 
 ```sh
 git clone https://github.com/Kavishcan/momentum.git
 cd momentum
-bash scripts/build-app.sh
+swift test --scratch-path "$TMPDIR/MomentumTests"
+bash scripts/build-app.sh release
 open build/Momentum.app
 ```
 
-Momentum appears in the menu bar, with no Dock icon. Click the half-filled circle. To stop it, choose **Quit** in the popover. Keep the app in the same location while testing notifications. Do not run multiple copies simultaneously.
+`Package.swift` opens in Xcode for development. The build script uses a temporary compiler directory to avoid File Provider signing metadata and packages `build/Momentum-macos-arm64.zip` on Apple Silicon (or `x86_64` on Intel). `MOMENTUM_BUILD_PATH` overrides the compiler directory. Use the app bundle rather than `swift run` for notification identity.
 
-For an optimized local build: `bash scripts/build-app.sh release`. The script ad-hoc signs the bundle and creates `build/Momentum-macos-arm64.zip` on Apple Silicon (or `x86_64` on Intel). It does not install certificates, request a developer account, notarize, or publish a release. Running the bare executable with `swift run` is not the supported notification workflow.
+## What works
 
-If a synced folder adds Finder metadata that interferes with app signing, extract the ZIP into a local folder outside that sync service and run the extracted app. The archive is made from a clean, verified staging bundle. To keep compiler output outside a synced checkout, use `MOMENTUM_BUILD_PATH="$TMPDIR/MomentumBuild" bash scripts/build-app.sh release`. Similarly, `swift test --scratch-path "$TMPDIR/MomentumChecks"` keeps test bundles outside the checkout.
+- **Today:** add up to three tasks, complete/uncomplete, edit, delete, or start a 10-minute session from a task. Completed tasks still count toward three.
+- **Just Start:** choose a task or One small step; start 10 or 25 minutes, pause, resume, end, or acknowledge completion. State is committed before the interface changes. Expired sessions reconcile on wake/relaunch and appear once in history.
+- **Night Shutdown:** choose a daily local time, enable/disable and explicitly save the reminder, check scheduling status, and send a five-second test notification. Edit, add, check, and delete routine steps. Checks reset at noon so after midnight still belongs to the same evening.
+- **History:** choose a past date, review tasks, copy a task into today, and see the latest 100 completed focus sessions.
+- **Settings:** create a consistent SQLite backup, reveal the data folder, and run a database integrity check. Appearance follows macOS light/dark mode.
 
-## Functional in this initial version
+All tasks, routine checks, preferences, timer state, and completed sessions live in one versioned SQLite database. Writes use bound parameters, constraints, transactions, a database-enforced three-task cap, WAL mode, and full synchronous commits. A failed write preserves the previous UI state and reports an error.
 
-- **Daily Three:** add up to three tasks for the current day; complete/uncomplete, rename, and delete. Completed tasks count toward the limit. New days start empty; prior records stay on disk.
-- **Just Start:** choose a daily task or an independent small step, then start 10 or 25 minutes. Pause, resume, or end a session. Remaining time appears in the menu bar while running. Deadline-based state persists through app relaunch and catches up after sleep. Completion stays visible until acknowledged; it does not automatically complete a task.
-- **Night Shutdown:** choose a local reminder time (default 22:00), explicitly enable a quiet daily local notification, and use an editable checklist of up to ten steps. Checks survive midnight and reset at noon. Start with three practical steps or replace them with your own.
-- **Local persistence:** SwiftData for tasks/checklist, AppStorage/UserDefaults for preferences and the active timer. No server, analytics, account, or cloud sync.
-- **Restrained UI:** grayscale surfaces, native controls, system fonts, accessible icon labels, editable sheets, and visible error messages.
+## Upgrade from 0.1
 
-Notifications require macOS permission. Enable them from **Night Shutdown → Enable daily reminder**. If denied, allow Momentum in System Settings → Notifications, then reopen the popover. macOS Focus, sleep, and notification settings can silence/delay alerts. Scheduling is implemented; actual delivery depends on the OS. The focus timer has an in-app completion state, not a completion notification.
+The first 0.2 launch snapshots the old `Momentum.store` using SQLite's backup API, reads a disposable working copy through SwiftData, and imports tasks, routine, reminder preferences, and the active timer in one transaction. The original store and defaults remain intact. A migration marker prevents repeated imports; failed imports roll back. Once using 0.2, keep using the new app so changes made in an old copy do not diverge from the new database.
 
-Momentum supports intentional wind-down. It does **not** block Mac websites/apps or iPhone apps, control Screen Time, or enforce bedtime.
+## Reminders
 
-## Tests and documentation
+In Night Shutdown, turn on **Remind me to wind down**, choose a time, and press **Save reminder**. Allow Momentum's macOS notification prompt. If permission was previously denied, enable Momentum in System Settings → Notifications and use **Refresh status**. **Send test** requests a notification five seconds later.
 
-```sh
-swift test
-```
+The OS controls displayed delivery: Focus modes, notification settings, sleep, and shutdown can suppress/delay alerts. Automated tests verify scheduling logic with an injected client; displayed banners and actual OS permission interactions still require manual verification. Completing focus requests a generic notification only if permission is already allowed; it never prompts by itself.
 
-See [DESIGN.md](DESIGN.md) for the adaptation of the supplied `Pasted text(7).txt` reference, [ARCHITECTURE.md](ARCHITECTURE.md) for storage/lifecycle decisions, and [VALIDATION.md](VALIDATION.md) for verified checks and limits. A macOS GitHub Actions workflow runs tests and builds the bundle.
+## Local data and backups
 
-## Planned, not implemented
+The database is `~/Library/Application Support/Momentum/momentum.sqlite`, with live WAL/SHM sidecars. Migration snapshots are in `MigrationBackups` within that folder. SQLite is local storage under normal macOS account/disk protections, not additional application-level encryption.
 
-History and focus statistics, launch at login, dark appearance, checklist reordering, backup/export/import, keyboard shortcuts beyond native editing/Quit, notification tab deep links, and Developer ID signing/notarization. There is no installer or App Store release.
+Use **Settings → Create database backup** instead of copying a live database's main file. The backup API includes committed WAL pages and produces a standalone snapshot.
 
-## Your data
+To restore manually: quit Momentum, move the entire current `Momentum` data folder aside, create a fresh `Momentum` folder, copy the selected backup into it as `momentum.sqlite`, and reopen. Keep the previous folder until you confirm the restore. There is no destructive in-app reset or automated restore in this version.
 
-The database is at `~/Library/Application Support/Momentum/Momentum.store` plus its sidecars. Preferences/timer use the `com.kavishcan.momentum` defaults domain. Data stays on your Mac under normal macOS account protections; no extra application-level encryption is provided. Back up the whole store folder while the app is quit. This initial version has no in-app reset/export tool and makes no medical or guaranteed behavior-change claims.
+## Documentation and limits
+
+See [DESIGN.md](DESIGN.md), [ARCHITECTURE.md](ARCHITECTURE.md), and [VALIDATION.md](VALIDATION.md).
+
+No Mac/iPhone app blocking, cloud sync, launch at login, checklist reordering, global shortcuts, automatic breaks, or signed/notarized distribution. The app does not enforce bedtime or promise medical or behavior-change outcomes.

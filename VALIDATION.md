@@ -1,31 +1,35 @@
-# Initial validation
+# Momentum 0.2 validation
 
-Date: 25 October 2026. Platform: Apple Silicon Mac, Xcode 27.0, Swift 6.4 in Swift 5 language mode; deployment target macOS 14.0. A clean macOS 14 machine and Intel hardware have not been tested.
+Date: 1 November 2026. Local platform: Apple Silicon, Xcode 27.0 / Swift 6.4 in Swift 5 language mode. Deployment target: macOS 14.0.
 
-## Automated results
+## Automated coverage
 
-- **14 XCTest tests passed, zero failures**, using both the native and current Swift Build engines. Tests cover daily task limits and rollover, editing/deletion, persistent disk-store reopen, checklist seeding/reset, timezone/DST/year boundaries, reminder time validation, and focus deadlines/pause/resume/serialization/expiry.
-- Release executable and `.app` bundle built successfully.
-- Clean staging app passed ad-hoc signing and strict signature verification.
-- The packaged ZIP was extracted into a fresh temporary folder; the extracted app passed deep, strict signature verification. Its executable is arm64 with macOS 14.0 minimum deployment version.
-- `Info.plist` validation, build-script syntax, and whitespace checks passed.
+The suite contains 35 tests: 27 core tests and 8 interface/controller/workflow tests. The opt-in actual-store migration test runs only when a local store path is supplied; CI skips that test and uses the synthetic SwiftData migration fixture.
 
-The macOS runner emitted Core Data interprocess notification-registration diagnostics under the restricted tool environment; all assertions, including disk writes and reopening, passed. Compilation/test output was directed to temporary storage because the synced Documents folder adds Finder metadata to generated bundles, which can make codesigning reject them. The build script creates an archive from clean staging before copying the visible app bundle into the checkout.
+Local result: **35 passed, zero failures**, including the opt-in snapshot of the existing store. Version 0.2.0 was built in release mode; the ZIP was extracted into a fresh temporary folder and passed deep/strict signature verification. The executable links the system SQLite library. No live user database was replaced during testing.
 
-## Manual checks
+- Task add/edit/complete/delete, three-task cap including completed tasks, and parameterized text containing SQL syntax.
+- Database trigger protection across separate connections; invalid/missing input and unsupported schema versions.
+- Read-only write failures retain published state and do not falsely start/end a timer.
+- Task, routine/checks, preferences, and active session persistence through reopening a real SQLite file.
+- Day rollover, noon night boundary, timezone, DST, and year boundary.
+- Focus start/pause/resume/expiry, serialization, exactly-once completed history, real completion timestamp, and immediate recovered history on relaunch.
+- A complete workflow through tasks, focus, shutdown checks, reminder enable/disable, SQLite backup, and reopening the backup.
+- Notification authorization denial, startup restoration without prompting, scheduling failures/retry, rapid edits converging to the latest setting, and test requests through a fake OS client.
+- Consistent backups containing committed WAL data, standalone read-only reopening, and integrity checks.
+- Transactional SwiftData/defaults migration, rollback/idempotence, retained original store, and a locally supplied isolated snapshot of the previous user store.
+- AppKit-hosted layouts for all four pages at minimum window size with long titles; idle/running/paused/finished menu dimensions; empty Today in light/dark appearance.
 
-Native UI automation timed out when attempting to launch/attach to the app. Live UI inspection and screenshots were not completed. A successful build is not proof of a visually inspected interface. Interactive smoke testing remains a release check.
+The actual-store check uses an isolated SQLite snapshot and does not replace the user's existing database. It exposed a WAL-header backup portability issue that the synthetic fixture did not; standalone backups now explicitly finalize in DELETE journal mode. The SwiftData working copy is disposable, allowing Core Data to create journal metadata without mutating the original or durable snapshot.
 
-Notification scheduling is implemented through `UNUserNotificationCenter`; actual permission prompts, displayed banners, denial/re-enable, rapid time changes, and OS Focus behavior have not yet been manually verified. No reminder was intentionally enabled for the user during validation. Sleep/relaunch expiry is covered by clock-based tests; actual Mac sleep/wake remains a manual release check.
+## Visual checks
 
-## Distribution status
+Native offscreen AppKit renderings of Today, Night Shutdown, History, and Settings were generated and inspected. Minimum-size content remains scrollable and nonzero. Long titles wrap. The empty Today view exposes task entry and both start durations without requiring an existing task. Light and dark renderings retain readable controls. Renderings use test data, not user task content.
 
-This is a local development build, ad-hoc signed, not notarized. The included archive is for the architecture on which it was built, not a universal binary. Gatekeeper may require the normal user-initiated approval flow when the app is transferred to another Mac. Developer ID signing, notarization, installer packaging, and App Store distribution remain planned.
+## Checks and limits
 
-## Popover sizing correction
+The release bundle and ZIP are built by `scripts/build-app.sh`; the clean staged bundle is verified with deep/strict codesigning. The deliverable archive is extracted into a fresh temporary directory for verification. Plist, script syntax, and diff whitespace checks are also run.
 
-A user-supplied screenshot showed the app launched with its header and footer visible but the task/timer region collapsed. The scroll view had a maximum height without a minimum or fixed height, allowing the menu host's compressed sizing pass to hide it. The popover now declares a 424 × 600 pt size and a 400 pt scroll viewport. The redundant external picker label is hidden to leave room for both navigation segments.
+Live desktop automation is unavailable for reliable interactive verification in this session. Displayed notification banners, actual OS permission dialogs, real sleep/wake, VoiceOver, and global keyboard interaction have not been manually certified. OS notification behavior can be silenced by Focus and system preferences. The development build is ad-hoc signed and not notarized; Intel hardware and a fresh macOS 14 installation have not been exercised locally.
 
-An AppKit hosting regression test exercises the real Today view at the containing window's minimum content size. It checks that the task/timer viewport remains usable and the window stays within a laptop-friendly height. This is an automated layout check, not a claim of live interactive verification in the menu bar.
-
-The regression test fails against the previous sizing (205 pt minimum window height and 0 pt viewport) and passes with the correction. The full suite now passes **15 tests, zero failures**. The rebuilt development app is version 0.1.1, build 2.
+The old 0.1 implementation passed narrower core tests but suffered a collapsed popover layout. Version 0.2 adds a normal main window, keeps the menu compact, unifies app state in SQLite, and expands testing to cover persistence failures, migration, and cross-feature workflows. Passing tests do not imply the remaining OS-level checks were completed.

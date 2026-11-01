@@ -1,66 +1,76 @@
-# Architecture
+# Momentum 0.2 architecture
 
-## Scope and platform
+## App structure
 
-Momentum 0.1 is a macOS 14+ SwiftUI menu-bar utility. It has no server, account, analytics, advertising SDK, network client, web view, or cloud entitlement. Swift Package Manager builds two modules without third-party dependencies. `scripts/build-app.sh` places the executable in a real `.app` bundle with a stable identifier and `LSUIElement`, then ad-hoc signs it for local use.
-
-The native entry point uses Apple's [MenuBarExtra window style](https://developer.apple.com/documentation/swiftui/menubarextra). The app deliberately has no Dock icon or main document window. Open the menu-bar symbol to interact; Quit is in the footer.
-
-## Modules and data flow
+A macOS 14+ SwiftUI app with a single named `Window("Momentum", id: "dashboard")`, normal Dock presence, and a compact `MenuBarExtra` window panel. The main window owns sustained task/routine editing; the panel provides quick focus controls and routes back to the main window. No backend, network client, account, cloud sync, or third-party package.
 
 ```text
-MomentumApp
-  ├─ ModelContainer (disk, CloudKit disabled)
-  │    └─ MomentumStore (@MainActor, ObservableObject)
-  │         ├─ DailyTask (@Model)
-  │         └─ RoutineStep (@Model)
-  ├─ FocusController → FocusSession → UserDefaults
-  └─ ReminderService → UNUserNotificationCenter
+AppRuntime: open database → legacy migration → Workspace
+Workspace
+  ├─ MomentumStore → MomentumDatabase → SQLiteConnection → system sqlite3
+  ├─ FocusController → FocusSession → same MomentumDatabase
+  └─ ReminderCoordinator → injected LocalReminderClient → UNUserNotificationCenter
        ↑
-MomentumRoot / TodayView / NightView → explicit actions
-       └─ @AppStorage → reminder enabled + local time
+Today / Night Shutdown / History / Settings / compact menu
 ```
 
-`MomentumCore` contains models, calendar rules, persistence actions, and the pure timer state machine. The executable module contains views, app lifetime, the timer's ticking adapter, and OS notification integration. Core tests run independently of UI and notification permission; a separate AppKit hosting test verifies that the popover retains a usable content viewport at its minimum window size.
+`MomentumCore` contains value records, database access, calendar rules, the timer state machine, migration, and the notification scheduling coordinator. The app module owns SwiftUI, AppKit window/lifecycle adapters, the timer tick, and the real OS notification client. `CSQLite` is a module map for the macOS SDK's SQLite headers/library.
 
-## Persistence
+## SQLite persistence
 
-| State | Storage | Reason |
-| --- | --- | --- |
-| Daily task UUID, title, day key, created time, completion | SwiftData | Structured durable records |
-| Routine step UUID, title, position, last completed night key | SwiftData | Editable checklist with durable completion |
-| Routine default-seeding marker | UserDefaults | Seed once; an intentionally empty checklist remains empty |
-| Timer phase, task title snapshot, duration, deadline, paused remainder | Codable data in UserDefaults | Small single active session |
-| Reminder enabled, hour, minute | AppStorage / UserDefaults | Small preferences shared with UI |
+The database is `~/Library/Application Support/Momentum/momentum.sqlite`. Connections enable foreign keys, WAL mode, `synchronous=FULL`, a 1.5-second busy timeout, and `FULLMUTEX`. Versioning uses `PRAGMA user_version`; newer schemas are refused rather than overwritten. Opening checks database integrity. DDL and first-run seeding are transactional and checked again inside the transaction to avoid overlapping initialization.
 
-The SwiftData store is explicitly located at `~/Library/Application Support/Momentum/Momentum.store` (with SQLite sidecars). Defaults belong to the bundle domain `com.kavishcan.momentum`. The [model container](https://developer.apple.com/documentation/swiftdata/modelcontainer) is configured with `cloudKitDatabase: .none`. This is local storage, protected by normal macOS account and disk protections; there is no additional application-level encryption or export UI.
+| Table | Content |
+| --- | --- |
+| metadata | Schema-adjacent initialization and import markers |
+| tasks | UUID, title, local day key, creation time, completion |
+| routine_steps | UUID, title, display position |
+| routine_checks | Step/night pairs with a cascading foreign key |
+| night_settings | Single enabled/hour/minute row with constraints |
+| active_focus | Single validated Codable session, stored as text |
+| focus_history | Unique session UUID, title, duration, completion time |
 
-`MomentumStore` uses a dedicated main-actor context with autosaving disabled. Actions save explicitly. Save errors roll back and surface a message; fetch failures surface a message. Store-open errors keep the existing files and show a failure view. No destructive automatic recovery or silent in-memory fallback.
+All user strings use bound parameters. Titles are validated; a SQLite trigger enforces three tasks per day even across connections. Completed tasks count toward the limit. Multi-statement operations use `BEGIN IMMEDIATE`/commit/rollback. Views use value snapshots and publish new state only after writes succeed. Failed writes keep inputs/session state and report an error. SQLite remains serialized on the main actor; the small bounded operations suit this local utility. This is not designed for a large concurrent database workload.
 
-The schema is initial/unversioned. Future structural changes require an explicit schema and migration plan before distribution. Historic tasks remain on disk; v0.1 only displays today's records. Routine completion stores the latest checked night only, not a history of all nights.
+Task/day queries are indexed. History's focus view shows the latest 100 rows; the database retains older entries. Deleting a routine step cascades its completion records. There is no destructive automatic database recovery or memory-only fallback.
 
-## Calendar semantics
+## Migration from 0.1
 
-Task keys are Gregorian `yyyy-MM-dd` in the Mac's current timezone, independent of UI language. The view refreshes while open and on app activation/timezone change. Midnight starts an empty Daily Three; old tasks are not deleted or automatically carried forward.
+The legacy `DailyTask` and `RoutineStep` SwiftData models are retained solely to decode old stores. On first startup, if `Momentum.store` exists:
 
-A night is noon through the following noon. This keeps a 00:30 wind-down in the preceding evening and avoids resetting a half-finished routine at midnight. Calendar date arithmetic handles DST; it does not subtract a fixed 86,400 seconds. Changing timezone can change which day/night is displayed; records keep their original keys. Night reminder time may be set to any local hour; the checklist boundary remains noon.
+1. The SQLite backup API makes a consistent durable snapshot in `MigrationBackups`, including committed WAL data.
+2. A disposable copy is opened by SwiftData. It is writable so Core Data can create its required journal metadata; the original and durable snapshot are not opened by SwiftData for mutation.
+3. UUIDs, tasks, routine/checks, AppStorage reminder preferences, and the previous Codable timer are imported into SQLite in one transaction.
+4. An import marker commits with the records. Repeated starts do not import again. A failed import rolls back and preserves the original files/preferences.
+
+The original defaults/store are retained but no longer used for normal writes. New installations mark migration as not needed. A synthetic legacy fixture tests import/rollback/idempotence; an opt-in local test also verifies an isolated snapshot of an actual previous store without printing its contents.
 
 ## Focus lifecycle
 
-`FocusSession` is a deterministic, Codable value type with idle/running/paused/finished phases. Start accepts 10 or 25 minutes, snapshots the task title, and stores an absolute deadline. Remaining time is derived from the deadline, rather than decrementing a counter.
+`FocusSession` has a UUID and idle/running/paused/finished phases. Start accepts 10/25 minutes, captures a task title, and sets an absolute deadline. Pause stores the remainder; resume creates a new deadline. The clock is clamped to the session duration and never becomes negative. Old Codable sessions without the new UUID/timestamp fields remain decodable for migration.
 
-`FocusController` owns one app-lifetime ticking task. Closing the popover does not stop it. Ticks update UI and persist only a finished transition. Start/pause/resume/reset also persist. On relaunch an elapsed deadline becomes finished. Pause stores a remainder; resume creates a new deadline. System wall-clock changes affect the deadline, an accepted v0.1 limitation. There are no session statistics, automatic breaks, focus completion notifications, or enforcement mechanisms.
+The app-lifetime `FocusController` ticks once a second. It writes only state transitions, not every second. Start/pause/resume/end/finish persist before the UI changes. Completion and a unique history row commit atomically; `INSERT OR IGNORE` prevents duplicates after relaunch/repeated expiry checks. Completion timestamps use the deadline rather than the later wake/launch time. Workspace refreshes history immediately after startup reconciliation and after a completion transition.
+
+Wake, activation, and timezone notifications dispatch on the main run loop and refresh the timer, calendar records, and reminder schedule. Closing the window leaves the timer alive. Quitting/relaunching preserves a deadline or paused remainder. Manual system clock changes affect absolute deadlines, an acknowledged limitation. Unfinished sessions are not recorded as completed.
 
 ## Reminder lifecycle
 
-`ReminderService` requests notification authorization only from the Enable action. One repeating local calendar trigger uses the stable identifier `momentum.night-shutdown`. Its date components omit a fixed timezone. Reconfiguring removes/replaces that identifier; disabling removes it. Changes are serialized so asynchronous OS calls cannot leave an older schedule after a newer one. Permission status is checked before adding requests.
+`ReminderCoordinator` depends on `LocalReminderClient`, so authorization, scheduling, cancellation, failures, rapid updates, and test requests can be verified without granting OS permission. UI changes are explicit drafts until saved. Permission is requested only from saving an enabled reminder.
 
-macOS owns delivery. User Focus modes, notification preferences, sleep, and shutdown can suppress or delay alerts. A successful scheduling call is not proof of a displayed banner. The OS retains scheduled reminders when the app exits. The foreground delegate permits a quiet banner/list entry, with no sound. Tapping a reminder launches/activates the app; automatic opening of a particular tab is not implemented.
+The coordinator serializes asynchronous schedule updates, skipping superseded queued work and reading the latest desired settings before each apply. The stable identifier `momentum.night-shutdown` replaces an existing request without removing a working schedule first. Disabling cancels the night/test request. Revoked permission shows an actionable status and cancels stale requests. Failure reports that scheduling failed and leaves Refresh status available. Startup restores the schedule without prompting.
 
-## Validation and remaining work
+The real adapter uses a repeating `UNCalendarNotificationTrigger` with local hour/minute and no fixed timezone. Send test requests a five-second local alert. Completion requests a generic notification only when permission is already granted. Foreground delivery allows banner/list presentation. Notification clicks route to Night Shutdown and activate the main window. Actual banner delivery remains controlled by macOS Focus, sleep, shutdown, and notification settings.
 
-Core tests cover the three-task cap, completion/edit/delete, daily rollover, disk reopen, checklist reset/default seeding, timezone/DST boundaries, reminder time validation, and timer pause/resume/serialization/expiry. CI builds and tests on a macOS runner.
+## Calendar semantics
 
-Manual release checks: OS notification delivery and denial/re-enable flows; actual sleep/wake; keyboard-only use and VoiceOver; long content and small displays; repeated rapid reminder changes; clean macOS 14 installation. The initial delivery records actual local checks separately in `VALIDATION.md`.
+Daily tasks use Gregorian `yyyy-MM-dd` in the current Mac timezone. A new day starts empty; older records remain available through History. Copying a historical task creates a new task and obeys today's cap. Nights run noon to noon, preserving after-midnight checks. Calendar day arithmetic handles DST; routine checks retain a record for each checked night. Changing timezone changes the displayed local day/night without rewriting historical keys.
 
-Deferred: history UI, custom dark mode, launch at login, signed/notarized distribution, backup/export/import, reordering checklist steps, notification deep links, global shortcuts, app/site blocking. iPhone app blocking is outside this Mac-only application's capabilities.
+## Backups and packaging
+
+The SQLite backup API includes live committed WAL pages. Export finalizes the destination in DELETE journal mode so the snapshot can be opened read-only without missing sidecars. Export cannot replace the active database or a file in its folder. The save panel stages a snapshot and then moves/replaces the user-selected destination. There is no automatic restore: documentation explains restoring to a fresh data directory while the app is quit.
+
+The build script compiles outside synced folders, assembles/ad-hoc signs a staged `.app`, verifies it, and archives that clean bundle before File Provider metadata can alter it. It swaps the visible bundle as a whole rather than overwriting a mapped executable. A running old instance still needs to be quit and reopened. Distribution is architecture-specific and not Developer ID signed or notarized.
+
+## Validation boundaries
+
+Automated tests cover the complete model/controller workflow with a real SQLite file and an injected notification client, persistence/backup/reopen, legacy migration, denied permission, scheduling failures, rapid edits, database write failure, calendar boundaries, and native AppKit-hosted layouts. Rendered views are inspected in light/dark appearance and with long titles. These are offscreen native hosting checks, not a claim that every macOS interaction was clicked live. Displayed notification delivery, real sleep/wake, VoiceOver, and notarized installation remain manual release checks.

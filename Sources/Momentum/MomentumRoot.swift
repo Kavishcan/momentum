@@ -1,338 +1,278 @@
 import AppKit
 import MomentumCore
-import SwiftData
 import SwiftUI
 
 struct MomentumRoot: View {
-    @StateObject private var store: MomentumStore
-    @ObservedObject var focus: FocusController
-    @ObservedObject var reminders: ReminderService
-    @State private var tab = 0
-    @AppStorage("night.enabled") private var nightEnabled = false
-    @AppStorage("night.hour") private var nightHour = 22
-    @AppStorage("night.minute") private var nightMinute = 0
-
-    init(container: ModelContainer, focus: FocusController, reminders: ReminderService) {
-        _store = StateObject(wrappedValue: MomentumStore(container: container))
-        self.focus = focus
-        self.reminders = reminders
-    }
-
+    @ObservedObject var workspace: Workspace
+    @Environment(\.openWindow) private var openWindow
     var body: some View {
-        MomentumPopover(tab: $tab) {
-            if tab == 0 { TodayView(store: store, focus: focus) }
-            else { NightView(store: store, reminders: reminders) }
-        }
-        .onAppear { refresh() }
-        .onReceive(focus.$now) { now in
-            if store.dayKey != DayClock.dayKey(for: now) || store.nightKey != DayClock.nightKey(for: now) {
-                store.refresh(now: now)
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in refresh() }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name.NSSystemTimeZoneDidChange)) { _ in refresh() }
-        .onChange(of: nightEnabled) { _, _ in configureReminder() }
-        .onChange(of: nightHour) { _, _ in configureReminder() }
-        .onChange(of: nightMinute) { _, _ in configureReminder() }
-        .alert("Something needs attention", isPresented: Binding(
-            get: { store.errorMessage != nil || focus.errorMessage != nil },
-            set: { if !$0 { store.errorMessage = nil; focus.errorMessage = nil } }
-        )) {
-            Button("OK") { store.errorMessage = nil; focus.errorMessage = nil }
-        } message: { Text(store.errorMessage ?? focus.errorMessage ?? "") }
-    }
-
-    private func refresh() { store.refresh(); configureReminder() }
-    private func configureReminder() { reminders.configure(enabled: nightEnabled, hour: nightHour, minute: nightMinute) }
-}
-
-/// Own the menu extra's ideal dimensions; a maximum alone lets a ScrollView collapse.
-struct MomentumPopover<Content: View>: View {
-    @Binding var tab: Int
-    @ViewBuilder var content: Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Momentum").font(.system(size: 24, weight: .medium))
-                    Text(Date.now, format: .dateTime.weekday(.wide).month(.abbreviated).day())
-                        .foregroundStyle(MomentumTheme.muted)
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 24) {
+                Label("Momentum", systemImage: "circle.lefthalf.filled").font(.system(size: 18, weight: .semibold))
+                    .padding(.bottom, 12)
+                ForEach(WorkspacePage.allCases) { page in
+                    Button { workspace.page = page } label: {
+                        Label(page.rawValue, systemImage: page.symbol)
+                            .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 12).padding(.vertical, 11)
+                            .background(workspace.page == page ? Color.primary.opacity(0.08) : .clear,
+                                        in: RoundedRectangle(cornerRadius: 8))
+                    }.buttonStyle(.plain).accessibilityAddTraits(workspace.page == page ? .isSelected : [])
                 }
                 Spacer()
-                Image(systemName: "circle.lefthalf.filled")
-                    .font(.system(size: 24, weight: .light)).accessibilityHidden(true)
-            }
-            Picker("Your day", selection: $tab) {
-                Text("Today").tag(0)
-                Text("Night Shutdown").tag(1)
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .frame(maxWidth: .infinity)
-
+                Text("Small steps.\nA calmer finish.").font(.callout).foregroundStyle(.secondary).lineSpacing(4)
+            }.padding(20).frame(width: 188)
+            Divider()
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    content
-                }.padding(.bottom, 4)
-            }
-            // MenuBarExtra may measure the minimum size first. A max-only frame
-            // reports zero here, hiding the entire task/timer/checklist region.
-            .frame(maxWidth: .infinity)
-            .frame(height: 400)
-
-            HStack {
-                Text("A little less friction. A little more intention.")
-                    .font(.system(size: 11)).foregroundStyle(MomentumTheme.muted)
-                Spacer(minLength: 4)
-                Button("Quit") { NSApp.terminate(nil) }
-                    .font(.system(size: 12)).keyboardShortcut("q")
-            }
+                VStack(alignment: .leading, spacing: 26) {
+                    switch workspace.page {
+                    case .today: TodayView(store: workspace.store, focus: workspace.focus)
+                    case .shutdown: NightView(store: workspace.store, reminders: workspace.reminders)
+                    case .history: HistoryView(store: workspace.store)
+                    case .settings: DataSettingsView(store: workspace.store)
+                    }
+                }.padding(28).frame(maxWidth: .infinity, alignment: .topLeading)
+            }.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding(24)
-        .frame(width: 424, height: 600)
-        .font(.system(size: 14))
-        .foregroundStyle(MomentumTheme.ink)
+        .frame(minWidth: 840, minHeight: 620)
         .background(MomentumTheme.canvas)
-        .tint(MomentumTheme.primary)
-        .preferredColorScheme(.light)
+        .tint(.primary)
+        .onAppear { workspace.activate() }
+        .onReceive(NotificationCenter.default.publisher(for: .momentumOpenNight)) { _ in
+            workspace.page = .shutdown; openWindow(id: "dashboard")
+        }
+        .modifier(WorkspaceErrorPresenter(store: workspace.store, focus: workspace.focus))
     }
 }
-
+struct WorkspaceErrorPresenter: ViewModifier {
+    @ObservedObject var store: MomentumStore
+    @ObservedObject var focus: FocusController
+    func body(content: Content) -> some View {
+        content.alert("The change needs attention", isPresented: Binding(
+            get: { store.errorMessage != nil || focus.errorMessage != nil },
+            set: { if !$0 { store.errorMessage = nil; focus.errorMessage = nil } }
+        )) { Button("OK") { store.errorMessage = nil; focus.errorMessage = nil } }
+        message: { Text(store.errorMessage ?? focus.errorMessage ?? "") }
+    }
+}
+struct PageHeading: View {
+    let title: String
+    let subtitle: String
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.system(size: 30, weight: .semibold))
+            Text(subtitle).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
 struct TodayView: View {
     @ObservedObject var store: MomentumStore
     @ObservedObject var focus: FocusController
     @State private var newTask = ""
-    @State private var selectedTaskID: UUID?
-    @State private var editingTask: DailyTask?
-
-    private var selectedTitle: String {
-        store.tasks.first { $0.id == selectedTaskID }?.title ?? "One small step"
+    @State private var editing: MomentumTask?
+    @State private var selectedID: UUID?
+    var body: some View {
+        PageHeading(title: "A little progress, on purpose.",
+                    subtitle: Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+        HStack(alignment: .top, spacing: 20) {
+            Card {
+                HStack {
+                    Text("Daily Three").font(.title3.weight(.semibold))
+                    Spacer()
+                    Text("\(store.tasks.filter(\.isComplete).count)/3 complete").font(.caption).foregroundStyle(.secondary)
+                }
+                Text("Choose what matters. Three is enough.").foregroundStyle(.secondary)
+                if store.tasks.isEmpty {
+                    Label("Start with one small, specific task.", systemImage: "plus.circle.dashed")
+                        .foregroundStyle(.secondary).padding(.vertical, 12)
+                }
+                ForEach(store.tasks) { task in
+                    HStack(alignment: .center, spacing: 10) {
+                        Button { store.toggle(task) } label: {
+                            Image(systemName: task.isComplete ? "checkmark.circle.fill" : "circle")
+                                .font(.title3).frame(width: 30, height: 36)
+                        }.buttonStyle(.plain).accessibilityLabel("\(task.isComplete ? "Uncomplete" : "Complete") \(task.title)")
+                        Text(task.title).strikethrough(task.isComplete)
+                            .foregroundStyle(task.isComplete ? .secondary : .primary)
+                            .frame(maxWidth: .infinity, alignment: .leading).fixedSize(horizontal: false, vertical: true)
+                        Button { selectedID = task.id; focus.start(minutes: 10, title: task.title) } label: {
+                            Image(systemName: "play").frame(width: 28, height: 36)
+                        }.buttonStyle(.plain).help("Start a 10-minute focus session")
+                            .accessibilityLabel("Focus on \(task.title)")
+                            .disabled(focus.session.phase == .running || focus.session.phase == .paused)
+                        Button { editing = task } label: { Image(systemName: "pencil").frame(width: 28, height: 36) }
+                            .buttonStyle(.plain).accessibilityLabel("Edit \(task.title)")
+                    }
+                    Divider()
+                }
+                TextField("What’s your next small step?", text: $newTask)
+                    .textFieldStyle(.roundedBorder).onSubmit(add)
+                    .accessibilityIdentifier("daily-task-input").disabled(store.tasks.count >= 3)
+                HStack {
+                    Text("\(store.tasks.count)/3 tasks").font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Add task", action: add)
+                        .disabled(newTask.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || store.tasks.count >= 3)
+                }
+            }.frame(minWidth: 260, maxWidth: .infinity)
+            FocusPanel(store: store, focus: focus, selectedID: $selectedID).frame(width: 272)
+        }
+        Label("Everything is saved on this Mac. Come back whenever you’re ready.", systemImage: "internaldrive")
+            .font(.callout).foregroundStyle(.secondary)
+        .sheet(item: $editing) { task in
+            EditTextSheet(title: "Edit task", initialValue: task.title, onSave: {
+                try store.database.renameTask(task.id, to: $0); store.refresh()
+            }, onDelete: { try store.database.deleteTask(task.id); store.refresh() })
+        }
+        .onChange(of: store.tasks.map(\.id)) { _, ids in if let selectedID, !ids.contains(selectedID) { self.selectedID = nil } }
     }
-
+    private func add() { if store.addTask(newTask) { newTask = "" } }
+}
+struct FocusPanel: View {
+    @ObservedObject var store: MomentumStore
+    @ObservedObject var focus: FocusController
+    @Binding var selectedID: UUID?
+    @State private var confirmEnd = false
     var body: some View {
         Card {
-            HStack {
-                Text("Daily Three").font(.system(size: 18, weight: .medium))
-                Spacer()
-                Text("\(store.tasks.filter(\.isComplete).count) / 3 done")
-                    .font(.system(size: 12)).foregroundStyle(MomentumTheme.muted)
-            }
-            Text("What would make today feel worthwhile?").foregroundStyle(MomentumTheme.muted)
-            ForEach(store.tasks) { task in
-                HStack(spacing: 8) {
-                    Button { store.toggle(task) } label: {
-                        Image(systemName: task.isComplete ? "checkmark.circle.fill" : "circle")
-                            .font(.system(size: 20)).frame(width: 32, height: 36)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(task.isComplete ? "Mark \(task.title) incomplete" : "Complete \(task.title)")
-                    Text(task.title)
-                        .strikethrough(task.isComplete)
-                        .foregroundStyle(task.isComplete ? MomentumTheme.muted : MomentumTheme.ink)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Button { selectedTaskID = task.id } label: {
-                        Image(systemName: "arrow.down.right").frame(width: 28, height: 32)
-                    }.buttonStyle(.plain).help("Choose for Just Start")
-                        .accessibilityLabel("Choose \(task.title) for focus")
-                    Button { editingTask = task } label: {
-                        Image(systemName: "pencil").frame(width: 28, height: 32)
-                    }.buttonStyle(.plain).help("Edit task").accessibilityLabel("Edit \(task.title)")
-                }
-            }
-            if store.tasks.count < 3 {
-                HStack(spacing: 8) {
-                    TextField(store.tasks.isEmpty ? "One small, specific task…" : "Add a task…", text: $newTask)
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityLabel("New daily task")
-                        .onSubmit(addTask)
-                    Button("Add", action: addTask)
-                        .disabled(newTask.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-            } else {
-                Text("Enough for today. Make room by editing a task.")
-                    .font(.system(size: 12)).foregroundStyle(MomentumTheme.muted)
-            }
-        }
-
-        Card {
-            HStack {
-                Text("Just Start").font(.system(size: 18, weight: .medium))
-                Spacer()
-                Image(systemName: "timer").accessibilityHidden(true)
-            }
+            Label("Just Start", systemImage: "timer").font(.title3.weight(.semibold))
             if focus.session.phase == .idle {
-                Text("You only need to begin.").foregroundStyle(MomentumTheme.muted)
-                Picker("Focus on", selection: $selectedTaskID) {
+                Text("You only need to begin.").foregroundStyle(.secondary)
+                Picker("Focus on", selection: $selectedID) {
                     Text("One small step").tag(nil as UUID?)
-                    ForEach(store.tasks) { task in Text(task.title).tag(Optional(task.id)) }
-                }
-                HStack(spacing: 8) {
-                    Button("Start 10 min") { focus.start(minutes: 10, title: selectedTitle) }
-                    Button("Start 25 min") { focus.start(minutes: 25, title: selectedTitle) }
-                }.buttonStyle(PrimaryButtonStyle())
+                    ForEach(store.tasks) { Text($0.title).tag(Optional($0.id)) }
+                }.pickerStyle(.menu)
+                Button("Start 10 minutes") { start(10) }.buttonStyle(PrimaryButtonStyle())
+                Button("Start 25 minutes") { start(25) }.frame(maxWidth: .infinity)
             } else {
-                Text(focus.session.taskTitle).lineLimit(3)
+                Text(focus.session.taskTitle).font(.headline).fixedSize(horizontal: false, vertical: true)
                 Text(focus.session.clockText(at: focus.now))
-                    .font(.system(size: 48, weight: .light, design: .rounded))
-                    .monospacedDigit().frame(maxWidth: .infinity)
-                    .accessibilityLabel("Time remaining")
+                    .font(.system(size: 46, weight: .light, design: .rounded)).monospacedDigit()
+                    .frame(maxWidth: .infinity).accessibilityLabel("Time remaining")
                     .accessibilityValue(focus.session.clockText(at: focus.now))
-                switch focus.session.phase {
-                case .running:
-                    HStack {
-                        Button("Pause") { focus.pause() }.buttonStyle(PrimaryButtonStyle())
-                        Button("End session") { focus.reset() }
-                    }
-                case .paused:
-                    Text("Paused. Come back when you’re ready.").foregroundStyle(MomentumTheme.muted)
-                    HStack {
-                        Button("Resume") { focus.resume() }.buttonStyle(PrimaryButtonStyle())
-                        Button("End session") { focus.reset() }
-                    }
-                case .finished:
-                    Text("That counts. Take a breath before the next thing.").foregroundStyle(MomentumTheme.muted)
+                ProgressView(value: 1 - focus.session.remaining(at: focus.now) / focus.session.duration)
+                    .accessibilityLabel("Session progress")
+                if focus.session.phase == .running {
+                    Button("Pause") { focus.pause() }.buttonStyle(PrimaryButtonStyle())
+                } else if focus.session.phase == .paused {
+                    Text("Paused. Take the time you need.").foregroundStyle(.secondary)
+                    Button("Resume") { focus.resume() }.buttonStyle(PrimaryButtonStyle())
+                } else {
+                    Label("That counts. Take a breath.", systemImage: "checkmark.circle")
                     Button("Done") { focus.reset() }.buttonStyle(PrimaryButtonStyle())
-                case .idle: EmptyView()
+                }
+                if focus.session.phase != .finished {
+                    Button("End session") { confirmEnd = true }.frame(maxWidth: .infinity)
                 }
             }
-        }
-        .sheet(item: $editingTask) { task in
-            EditTextSheet(title: "Edit task", initialValue: task.title,
-                          onSave: { store.rename(task, to: $0) }, onDelete: { store.delete(task) })
-        }
-        .onChange(of: store.dayKey) { _, _ in selectedTaskID = nil }
-        .onChange(of: store.tasks.map(\.id)) { _, ids in
-            if let selectedTaskID, !ids.contains(selectedTaskID) { self.selectedTaskID = nil }
-        }
+        }.confirmationDialog("End this focus session?", isPresented: $confirmEnd) {
+            Button("End session", role: .destructive) { focus.reset() }
+            Button("Keep going", role: .cancel) {}
+        } message: { Text("An unfinished session won’t be added to your completed history.") }
     }
-
-    private func addTask() {
-        store.addTask(newTask)
-        if store.errorMessage == nil { newTask = "" }
-    }
+    private func start(_ minutes: Int) { focus.start(minutes: minutes, title: store.tasks.first { $0.id == selectedID }?.title ?? "One small step") }
 }
-
 struct NightView: View {
     @ObservedObject var store: MomentumStore
-    @ObservedObject var reminders: ReminderService
-    @AppStorage("night.enabled") private var enabled = false
-    @AppStorage("night.hour") private var hour = 22
-    @AppStorage("night.minute") private var minute = 0
+    @ObservedObject var reminders: ReminderCoordinator
+    @State private var draft = NightSettings()
+    @State private var saving = false
     @State private var newStep = ""
-    @State private var editingStep: RoutineStep?
-
+    @State private var editing: ShutdownStep?
     private var time: Binding<Date> {
-        Binding(get: {
-            Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 1, hour: hour, minute: minute)) ?? .now
-        }, set: { date in
-            hour = Calendar.current.component(.hour, from: date)
-            minute = Calendar.current.component(.minute, from: date)
-        })
+        Binding(get: { Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 1, hour: draft.hour, minute: draft.minute)) ?? .now },
+                set: { draft.hour = Calendar.current.component(.hour, from: $0); draft.minute = Calendar.current.component(.minute, from: $0) })
     }
-
     var body: some View {
+        PageHeading(title: "Land the day.", subtitle: "Make the next choice easy. Park your phone away from bed and give yourself permission to stop.")
         Card {
-            Text("Land the day.").font(.system(size: 24, weight: .regular))
-            Text("Make the next choice easy: put your phone away before you get into bed.")
-                .foregroundStyle(MomentumTheme.muted).fixedSize(horizontal: false, vertical: true)
-            DatePicker("Wind-down reminder", selection: time, displayedComponents: .hourAndMinute)
-            if enabled {
-                Button("Turn reminders off") { enabled = false }
-            } else {
-                Button("Enable daily reminder") {
-                    Task {
-                        if await reminders.requestPermission() { enabled = true }
-                    }
-                }.buttonStyle(PrimaryButtonStyle()).disabled(reminders.isWorking)
+            Text("Your evening reminder").font(.title3.weight(.semibold))
+            Toggle("Remind me to wind down", isOn: $draft.enabled)
+            DatePicker("At", selection: time, displayedComponents: .hourAndMinute).disabled(!draft.enabled)
+            HStack {
+                Button(saving ? "Saving…" : "Save reminder") { save() }.disabled(saving || reminders.busy || draft == store.settings)
+                Button("Send test") { Task { do { try await reminders.test() } catch { store.errorMessage = error.localizedDescription } } }
+                    .disabled(saving || reminders.busy)
+                Button("Refresh status") { reminders.synchronize() }.disabled(reminders.busy)
             }
-            Text(reminders.status).font(.system(size: 12)).foregroundStyle(MomentumTheme.muted)
-                .fixedSize(horizontal: false, vertical: true)
+            if draft != store.settings { Text("You have unsaved reminder changes.").font(.caption).foregroundStyle(.secondary) }
+            Text(reminders.status).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
         Card {
             HStack {
-                Text("Your shutdown routine").font(.system(size: 18, weight: .medium))
-                Spacer()
-                Text("\(store.steps.filter { $0.completedNightKey == store.nightKey }.count)/\(store.steps.count)")
-                    .foregroundStyle(MomentumTheme.muted)
-                    .accessibilityLabel("Completed routine steps")
+                Text("Your shutdown routine").font(.title3.weight(.semibold)); Spacer()
+                Text("\(store.steps.filter(\.isComplete).count)/\(store.steps.count) done").foregroundStyle(.secondary)
             }
             ForEach(store.steps) { step in
-                HStack(spacing: 8) {
-                    let done = step.completedNightKey == store.nightKey
-                    Button { store.toggle(step) } label: {
-                        Image(systemName: done ? "checkmark.circle.fill" : "circle")
-                            .font(.system(size: 20)).frame(width: 32, height: 36)
-                    }.buttonStyle(.plain)
-                        .accessibilityLabel(done ? "Uncheck \(step.title)" : "Complete \(step.title)")
-                    Text(step.title).strikethrough(done)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Button { editingStep = step } label: {
-                        Image(systemName: "pencil").frame(width: 28, height: 32)
-                    }.buttonStyle(.plain).help("Edit step").accessibilityLabel("Edit \(step.title)")
-                }
-            }
-            if store.steps.count < 10 {
                 HStack {
-                    TextField("Add a wind-down step…", text: $newStep)
-                        .textFieldStyle(.roundedBorder).accessibilityLabel("New routine step").onSubmit(addStep)
-                    Button("Add", action: addStep)
-                        .disabled(newStep.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Button { store.toggle(step) } label: {
+                        Image(systemName: step.isComplete ? "checkmark.circle.fill" : "circle").font(.title3).frame(width: 32, height: 36)
+                    }.buttonStyle(.plain).accessibilityLabel("\(step.isComplete ? "Uncheck" : "Complete") \(step.title)")
+                    Text(step.title).strikethrough(step.isComplete).frame(maxWidth: .infinity, alignment: .leading)
+                    Button { editing = step } label: { Image(systemName: "pencil").frame(width: 32, height: 36) }
+                        .buttonStyle(.plain).accessibilityLabel("Edit \(step.title)")
                 }
             }
-            Text("Checks reset at noon, so after midnight still counts as tonight.")
-                .font(.system(size: 12)).foregroundStyle(MomentumTheme.muted)
-                .fixedSize(horizontal: false, vertical: true)
-            if !store.steps.isEmpty && store.steps.allSatisfy({ $0.completedNightKey == store.nightKey }) {
-                Label("You’re ready to switch off. Rest well.", systemImage: "moon")
-                    .font(.system(size: 14, weight: .medium))
+            HStack {
+                TextField("Add a wind-down step…", text: $newStep).textFieldStyle(.roundedBorder).onSubmit(addStep)
+                Button("Add step", action: addStep).disabled(newStep.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || store.steps.count >= 10)
+            }
+            Text("Checks reset at noon, so after midnight still counts as tonight.").font(.caption).foregroundStyle(.secondary)
+            if !store.steps.isEmpty && store.steps.allSatisfy(\.isComplete) {
+                Label("You’re ready to switch off. Rest well.", systemImage: "moon.stars").font(.headline)
             }
         }
-        .sheet(item: $editingStep) { step in
-            EditTextSheet(title: "Edit routine step", initialValue: step.title,
-                          onSave: { store.rename(step, to: $0) }, onDelete: { store.delete(step) })
+        .onAppear { draft = store.settings }
+        .sheet(item: $editing) { step in
+            EditTextSheet(title: "Edit routine step", initialValue: step.title, onSave: {
+                try store.database.renameStep(step.id, to: $0); store.refresh()
+            }, onDelete: { try store.database.deleteStep(step.id); store.refresh() })
         }
     }
-
-    private func addStep() {
-        store.addStep(newStep)
-        if store.errorMessage == nil { newStep = "" }
+    private func addStep() { if store.addStep(newStep) { newStep = "" } }
+    private func save() {
+        saving = true
+        let value = draft
+        Task {
+            defer { saving = false }
+            do {
+                if value.enabled {
+                    guard try await reminders.requestPermission() else {
+                        store.errorMessage = "Allow Momentum in System Settings → Notifications, then save again. Your previous reminder setting is unchanged."
+                        return
+                    }
+                }
+                if store.saveSettings(value) { reminders.synchronize() }
+            } catch { store.errorMessage = error.localizedDescription }
+        }
     }
 }
-
 struct EditTextSheet: View {
     let title: String
     @State private var text: String
-    let onSave: (String) -> Void
-    let onDelete: () -> Void
+    let onSave: (String) throws -> Void
+    let onDelete: () throws -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var confirmDelete = false
-
-    init(title: String, initialValue: String, onSave: @escaping (String) -> Void, onDelete: @escaping () -> Void) {
-        self.title = title
-        _text = State(initialValue: initialValue)
-        self.onSave = onSave
-        self.onDelete = onDelete
+    @State private var error: String?
+    init(title: String, initialValue: String, onSave: @escaping (String) throws -> Void, onDelete: @escaping () throws -> Void) {
+        self.title = title; _text = State(initialValue: initialValue); self.onSave = onSave; self.onDelete = onDelete
     }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text(title).font(.headline)
-            TextField("Title", text: $text).textFieldStyle(.roundedBorder)
+            Text(title).font(.title3.weight(.semibold))
+            TextField("Title", text: $text).textFieldStyle(.roundedBorder).onSubmit(save)
+            if let error { Text(error).font(.callout).foregroundStyle(.secondary) }
             HStack {
-                Button("Delete", role: .destructive) { confirmDelete = true }
-                Spacer()
+                Button("Delete", role: .destructive) { confirmDelete = true }; Spacer()
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
-                Button("Save") { onSave(text); dismiss() }
-                    .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .keyboardShortcut(.defaultAction)
+                Button("Save", action: save).keyboardShortcut(.defaultAction)
+                    .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || text.count > 200)
             }
-        }.padding(24).frame(width: 360)
+        }.padding(28).frame(width: 420)
             .confirmationDialog("Delete this item?", isPresented: $confirmDelete) {
-                Button("Delete", role: .destructive) { onDelete(); dismiss() }
+                Button("Delete", role: .destructive) { do { try onDelete(); dismiss() } catch { self.error = error.localizedDescription } }
                 Button("Cancel", role: .cancel) {}
             }
     }
+    private func save() { do { try onSave(text); dismiss() } catch { self.error = error.localizedDescription } }
 }

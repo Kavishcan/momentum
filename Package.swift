@@ -6,7 +6,8 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [.executable(name: "Momentum", targets: ["Momentum"])],
     targets: [
-        .target(name: "MomentumCore"),
+        .systemLibrary(name: "CSQLite"),
+        .target(name: "MomentumCore", dependencies: ["CSQLite"]),
         .executableTarget(name: "Momentum", dependencies: ["MomentumCore"]),
         .testTarget(name: "MomentumCoreTests", dependencies: ["MomentumCore"]),
         .testTarget(name: "MomentumInterfaceTests", dependencies: ["Momentum"])

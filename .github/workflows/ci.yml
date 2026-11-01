@@ -9,7 +9,7 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-      - name: Test persistence, clocks, and popover layout
-        run: swift test
+      - name: Test SQLite workflows and native layouts
+        run: swift test --scratch-path "$RUNNER_TEMP/MomentumTests"
       - name: Build native app bundle
         run: bash scripts/build-app.sh release

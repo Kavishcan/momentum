@@ -1,92 +1,83 @@
-# Momentum design system
+# Momentum design system · 0.2
 
-Momentum is a quiet place to choose three meaningful tasks, begin one, and wind down at night. Its interface should reduce the effort needed to take the next step. It should never turn rest into a score, or a missed day into a failure.
+Momentum helps someone choose three tasks, start one, and wind down at night. It should feel calm and obvious, with no productivity rankings, streak loss, or shame.
 
-## Reference and adaptation
+## Direction
 
-Based on the user-supplied `Pasted text(7).txt`, an Asana-inspired reference with restrained grayscale, generous whitespace, soft containers, and short transitions. This is an adaptation for a compact native macOS utility, not a copy of Asana or an assertion of affiliation.
+The supplied `Pasted text(7).txt` remains the reference for restrained Asana-inspired grayscale, whitespace, and measured typography. Momentum adapts those principles to native macOS instead of reproducing a marketing website. System fonts replace proprietary TWK Lausanne. No downloaded fonts, gradients, decorative illustrations, or web views.
 
-The reference has conflicting surface/text names, type sizes, and 4-versus-8-unit grid descriptions. Momentum resolves those explicitly: dark body text on light surfaces, a 4-point grid with mostly 8-point intervals, native controls, and a compact type hierarchy. Proprietary TWK Lausanne is neither bundled nor required. There are no web breakpoints or marketing-page hero styles.
+The application has a normal main window and Dock presence. All sustained editing happens in that window. The menu-bar panel has quick focus controls, Open Momentum, Night Shutdown, and Quit. A small popover should never be the only way to reach the app.
 
-## Colors
+## Information architecture
 
-All values are sRGB. Implementation lives in `Sources/Momentum/Theme.swift`.
-
-| Token | Value | Use |
+| Place | Purpose | Primary actions |
 | --- | --- | --- |
-| Canvas | `#FFFFFF` | Popover background |
-| Surface | `#F3F3F3` | Quiet section cards |
-| Ink | `#0D0E10` | Body text, headings, checkbox outlines |
-| Muted | `#535C65` | Supporting copy, counts, completed task text |
-| Primary | `#646F79` | Primary button fill and native tint |
-| On primary | `#FFFFFF` | Primary button labels |
-| Border | `#D2D2D2` | Optional decorative separators; never the only control boundary |
+| Today | Choose meaningful tasks and begin | Add task, complete, edit, start 10/25 minutes |
+| Night Shutdown | Set a reminder and wind down | Toggle reminder, choose time, Save reminder, checklist |
+| History | See prior tasks and completed sessions | Choose date, copy a past task into today |
+| Settings | Keep local data healthy | Back up, show data folder, check database |
 
-Calculated WCAG contrast: ink/canvas 19.31:1; ink/surface 17.40:1; muted/canvas 6.80:1; muted/surface 6.13:1; white/primary 5.13:1. The decorative border is only 1.51:1 on white and is unsuitable for essential control outlines. Native input borders and focus indicators retain platform behavior.
+Use explicit text for primary actions. Small row icons are supplementary and receive hover help or accessibility labels. Keep the sidebar in a fixed visual position and mark the selected page using a filled background and accessibility selected state.
 
-The first version intentionally uses a light appearance, including when the Mac is in dark mode. A separate dark palette is planned; do not approximate it by inverting individual colors. Destructive actions retain native system styling. Completion uses a checkmark and text, not a green status color.
+## Colors and appearance
+
+Use semantic system colors so the app follows macOS light/dark appearance and system contrast preferences. The light reference values below express the visual intent; the system resolves actual values at runtime.
+
+| Token | Light intent | Implementation |
+| --- | --- | --- |
+| Canvas | Near-white / `#FFFFFF` | `NSColor.windowBackgroundColor` |
+| Surface | Quiet neutral surface | `NSColor.controlBackgroundColor` |
+| Ink | Charcoal / near `#0D0E10` | `Color.primary` |
+| Secondary | Readable neutral gray | `Color.secondary` |
+| Border | Low-emphasis separator | Primary at 12% opacity; decorative only |
+| Primary action | Ink fill, contrasting canvas text | Semantic foreground/background inversion |
+
+Do not use muted text for essential state by itself: combine icons, labels, or text such as Paused and Complete. Destructive controls use native styling and a confirmation dialog. Native fields, toggles, buttons, pickers, and focus rings retain platform rendering. There is no custom saturation-based status system.
 
 ## Typography
 
-Use SwiftUI `.system` / San Francisco via macOS, with the system's own fallback for other scripts. No downloaded fonts. Sizes below are points, not CSS pixels.
+Use SwiftUI system fonts with the platform's script fallback. Sizes are points.
 
-| Role | Size / weight | Use |
-| --- | --- | --- |
-| App title | 24 / medium | Momentum heading |
-| Night prompt | 24 / regular | “Land the day.” |
-| Section title | 18 / medium | Daily Three, Just Start, routine |
-| Body | 14 / regular | Tasks, instructions, fields |
-| Button | 14 / medium | Begin, resume, enable reminder |
-| Supporting | 12 / regular | Reminder state, reset explanation |
-| Footer | 11 / regular | Nonessential closing line |
-| Timer | 48 / light, system rounded | Remaining time; monospaced digits |
+- Page heading: 30 pt semibold.
+- App name in sidebar: 18 pt semibold.
+- Card heading: native title3, semibold.
+- Body and controls: native body/callout; native control metrics.
+- Supporting text: native caption, limited to nonessential detail.
+- Timer: 46 pt light system rounded, monospaced digits; 32 pt in the menu panel.
 
-Use natural multiline layout and default native line heights. Do not tighten tracking. Long task titles wrap; saved titles are limited to 200 characters. The focus title may truncate after three lines. The timer is readable at a glance without decorative progress animation.
+Long task titles wrap naturally. Titles accept up to 200 characters. The task picker may abbreviate long choices; the active timer displays the selected title in multiple lines. Do not announce timer updates every second through accessibility live regions.
 
-## Layout and spacing
+## Layout
 
-- Base unit: 4 pt. Preferred scale: 4, 8, 12, 16, 20, 24, 32, 48, 64.
-- Popover: 424 × 600 pt; 24 pt outer padding; 20 pt between major groups. Explicit dimensions prevent a menu host's minimum-size measurement from collapsing the contents.
-- Header: title and date on the left; a single monochrome symbol on the right.
-- Two native segmented tabs: Today and Night Shutdown.
-- Content scrolls within a 400 pt viewport, keeping the header and Quit control reachable on a typical laptop display. The navigation picker hides its redundant external label so both segments fit.
-- Cards: 20 pt padding, 16 pt internal spacing, no heavy shadow or nested dashboard panels.
-- Rows: 8 pt horizontal gaps. Checkbox hit areas are 32 × 36 pt; edit/select targets are 28 × 32 pt. These are mouse-oriented macOS targets, not a claim of universal 44 pt touch compliance.
-- Primary buttons: minimum 40 pt height, 16 pt horizontal padding. Native field and secondary button metrics remain native.
+- Four-point base spacing; preferred steps: 4, 8, 12, 16, 20, 24, 28, 32, 48.
+- Main window defaults to 980 × 720 pt; minimum 840 × 620 pt.
+- Sidebar: 188 pt including padding. Main content scrolls independently.
+- Main page padding: 28 pt. Section gap: 26 pt. Adjacent cards: 20 pt.
+- Cards: 24 pt internal padding, 18 pt internal gaps, 16 pt radius, light decorative outline.
+- Today places Daily Three beside a 272 pt focus card. The minimum window reserves enough width for both.
+- Menu panel: 320 pt wide, content-derived finite height, 20 pt padding. It contains no long forms or large scrolling workflow.
+- Primary buttons: at least 40 pt high, 18 pt horizontal padding, 8 pt radius.
 
-## Radius and elevation
+At the minimum window size long content may scroll; it must never collapse to zero height or hide the route back to another page. Test full and empty lists and every timer phase.
 
-- 4 pt: reserved for dense details if introduced.
-- 8 pt: primary buttons and small containers.
-- 20 pt: major section cards.
-- 64 pt: reference-only; unused in this compact utility.
+## Interaction contracts
 
-The OS owns the menu extra's exterior shape and elevation. Cards use a light fill, without stacked shadows. Do not add gradients, glass effects, oversized pills, or floating decorative elements.
+**Daily Three:** completed tasks count toward the three-task limit. Add clears its field only after a successful database write. The play icon starts a 10-minute session for that task. Editing offers Save, Cancel, and confirmed Delete. Invalid or failed edits remain open with a readable error.
 
-## Components
+**Focus:** an independent One small step option allows starting without a task. Start, Pause, Resume, End session, and Done reflect actual saved state. Ending an unfinished session asks for confirmation and does not count it as completed. Finishing focus never automatically completes a daily task. Closing the window does not stop the timer.
 
-**Daily Three:** three slots maximum, including completed tasks. A labeled input and Add action appear while space remains. Each task has a checkmark toggle, choose-for-focus action, and edit action. Editing supports save, cancel, and confirmed deletion. No empty demo tasks are inserted.
+**Reminders:** the checkbox and time are drafts until Save reminder is pressed. Show an unsaved-changes note. Request OS permission only when saving an enabled reminder. Display scheduling status and errors independently of the saved desired time. Provide Send test and Refresh status. Reminder and completion notifications contain no private task titles.
 
-**Just Start:** a native task picker, an independent “One small step” option, and two equally weighted 10/25-minute start actions. A running session shows its task snapshot, clock, Pause, and End session. Paused and finished states have explicit text. Finishing never automatically checks a task off.
+**Night routine:** checks survive midnight and reset at noon. Editing or deleting a step is explicit. An intentionally empty routine stays empty. Ten steps maximum.
 
-**Night reminder:** a native time picker and an explicit enable action. Permission is requested only after that action. Display disabled, denied, scheduled, and failure states in plain language. The reminder is quiet and contains no task titles.
+**History:** prior tasks remain on their original day. Add to today makes a new task and respects the current three-task limit. The focus list displays the most recent 100 completed sessions; older records remain in the database.
 
-**Night checklist:** three practical defaults, editable titles, additions up to ten steps, explicit deletion, and a count. Checks persist across midnight and reset at noon. Completion receives one quiet sentence, without confetti, streaks, or a score.
+**Errors and recovery:** never display an unsaved change as successful. Keep input on failure. Startup errors keep existing files and offer Retry, Show data folder, and Quit. Backup completion reports the chosen filename. Do not silently replace a failed database with empty memory storage.
 
-**Errors:** local save failures appear in an alert and the attempted change rolls back. Store-open failures retain the existing files and show a recovery message. Never silently replace a failed disk store with disposable memory storage.
+## Accessibility and tone
 
-## Interaction and motion
+Use native controls and focus behavior, labeled icon actions, logical reading order, multiline labels, and semantic colors. Return submits task/step entry or saves an edit; Escape cancels an editor. Quit remains accessible in the normal application menu and menu-bar panel. There are no custom animations, so Reduce Motion loses no information.
 
-- Prefer native button, picker, text-entry, sheet, and dialog behavior.
-- Return submits a new task/step; Return saves an edit, Escape cancels an edit, Command-Q quits.
-- Hover help names icon actions; VoiceOver receives a label for every icon-only control.
-- Preserve keyboard focus rings. Do not hide focus to achieve visual minimalism.
-- The reference's 100/200/300 ms ease-in-out timing is a ceiling for future custom transitions, not a requirement to animate every action. V0.1 adds no custom animation, so Reduce Motion introduces no lost information.
-- No automatic tab switching, coercive countdowns, punitive messages, global keyboard interception, sleep prevention, or focus stealing.
-- Timer deadlines continue during sleep and app closure; paused time does not. An expired session is reconciled on wake/relaunch. Completion is visible in the app and menu icon; it does not play a sound or send a focus notification.
+Automated AppKit hosting checks cover all four pages at minimum size, long titles, empty state in light/dark appearance, and the menu in every timer phase. VoiceOver and full interactive keyboard certification remain manual release checks.
 
-## Accessibility and language
-
-Meet at least 4.5:1 for normal text and 3:1 for essential graphics/control indicators. Use checkmarks, shapes, labels, and counts in addition to tone. Expose timer text as an accessibility value without announcing every second. Keep content in visual/reading order and allow multiline labels. Test the popover with Full Keyboard Access, VoiceOver, increased contrast, and long titles before a distribution release. These are release checks, not claims of completed certification.
-
-Use calm, concrete language: “You only need to begin”, “That counts”, “Rest well”. Avoid “failed”, “lazy”, streak loss, productivity rankings, and claims of medical benefit. Momentum can remind and support a routine. It cannot enforce bedtime or block iPhone apps.
+Use “You only need to begin,” “That counts,” and “Rest well.” Avoid punitive messages and guaranteed behavior-change claims. Momentum reminds and supports a routine; it does not block iPhone apps or enforce bedtime.
