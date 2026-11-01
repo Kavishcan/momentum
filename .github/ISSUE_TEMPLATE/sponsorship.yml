@@ -1,0 +1,28 @@
+name: Sponsorship enquiry
+description: Discuss supporting Momentum while payment setup is pending.
+title: "[Sponsorship] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your interest in supporting Momentum. GitHub Sponsors setup is pending; this form is not a checkout.
+        This enquiry is public. Leave out banking, tax, payment, and private contact details.
+  - type: input
+    id: project
+    attributes:
+      label: Name or project
+      description: A public name you are comfortable sharing.
+    validations:
+      required: true
+  - type: textarea
+    id: support
+    attributes:
+      label: How would you like to support Momentum?
+      description: Describe the kind of project support you would like to discuss.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional public context
+      description: Optional public website or questions about acknowledgement. Please do not include payment information.

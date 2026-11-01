@@ -46,7 +46,6 @@ This is a development build: ad-hoc signed, not notarized by Apple.
 macOS may ask you to explicitly approve opening it in System Settings.
 
 Source and release notes: https://github.com/Kavishcan/momentum
-The repository is private; a GitHub account with access is required for downloads.
 INSTALL
 image="$PWD/build/Momentum-macos-$architecture.dmg"
 hdiutil create -volname "Momentum" -srcfolder "$payload" -fs HFS+ -format UDZO -ov "$image"

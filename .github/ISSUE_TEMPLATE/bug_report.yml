@@ -1,0 +1,50 @@
+name: Bug report
+description: Report a reproducible problem with Momentum.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For security vulnerabilities, use the private email in [SECURITY.md](https://github.com/Kavishcan/momentum/security/policy).
+        Use fake task names and redact screenshots/logs. Do not upload personal databases, credentials, or backups.
+  - type: input
+    id: version
+    attributes:
+      label: Momentum version
+      placeholder: "For example: 0.3.0"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+    validations:
+      required: true
+  - type: dropdown
+    id: architecture
+    attributes:
+      label: Mac architecture
+      options:
+        - Apple Silicon
+        - Intel
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include a minimal example using synthetic data.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Redacted screenshots or logs
+      description: Optional. Remove task text, personal paths, and secrets before sharing.

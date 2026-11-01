@@ -1,0 +1,22 @@
+name: Feature idea
+description: Suggest a clearer workflow or a focused improvement.
+title: "[Idea] "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to happen?
+      description: Describe the interaction and who it would help.
+    validations:
+      required: true
+  - type: textarea
+    id: considerations
+    attributes:
+      label: Alternatives or considerations
+      description: Mention permissions, local data, accessibility, or maintenance implications if relevant.

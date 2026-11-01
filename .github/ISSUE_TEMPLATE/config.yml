@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability privately
+    url: https://github.com/Kavishcan/momentum/security/policy
+    about: Use the private contact in the security policy rather than a public issue.
+  - name: Usage help and troubleshooting
+    url: https://github.com/Kavishcan/momentum/blob/main/SUPPORT.md
+    about: Start here for launch, reminders, timer, and local-data questions.

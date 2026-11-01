@@ -8,7 +8,7 @@ A local-first macOS app for Daily Three tasks, 10/25-minute focus sessions, and 
 - **Momentum-macos-universal.zip** — the same app without a disk image.
 - **SHA256SUMS** — checksums for both downloads.
 
-Requires **macOS 14 or later**. The repository is private; sign in with an account that has access to download the assets.
+Requires **macOS 14 or later**. Download release assets from the links on this page or the repository README.
 
 ## Install or update
 
