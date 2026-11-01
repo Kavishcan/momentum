@@ -8,17 +8,15 @@ Momentum is an independently maintained native Mac app. Sponsorship can help sus
 
 Confirmed supporters can be acknowledged here with their permission. Support arrangements and any recognition will be discussed before they are announced.
 
-## Become a sponsor
+## Current status
 
-**[Sponsor Kavishcan on GitHub Sponsors →](https://github.com/sponsors/Kavishcan)**
+**GitHub Sponsors setup is pending. Direct sponsorship payments are not enabled yet.**
 
-Choose one-time or monthly support on the GitHub Sponsors profile. Sponsorship supports my ongoing development work, including Momentum, project maintenance, documentation, and new ideas.
+The repository's funding configuration points to this page. A payment link will be added once the maintainer's GitHub Sponsors profile is approved and live.
 
-The repository's Sponsor button links directly to this profile. Available options and payment details are shown by GitHub during checkout.
+If you or your team would like to discuss supporting Momentum, [open a sponsorship enquiry](https://github.com/Kavishcan/momentum/issues/new?template=sponsorship.yml). Share the kind of support you have in mind and any recognition you would like to discuss. The enquiry is public: leave out payment details, private contact information, and contractual documents.
 
-If your team would like to discuss supporting Momentum or public acknowledgement, [open a sponsorship enquiry](https://github.com/Kavishcan/momentum/issues/new?template=sponsorship.yml). The enquiry is public, so leave out payment details, private contact information, and contractual documents. Any arrangement and acknowledgement will be agreed before it is announced.
-
-General support does not guarantee a particular feature, release date, or support deadline.
+Any arrangement and acknowledgement will be agreed before it is announced. General support does not buy priority handling of a vulnerability or guarantee a feature.
 
 ## Other ways to help
 
@@ -29,6 +27,23 @@ General support does not guarantee a particular feature, release date, or suppor
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for practical ways to get involved.
 
+## Set up GitHub Sponsors — maintainer checklist
+
+For the `Kavishcan` account:
+
+1. Open [GitHub Sponsors](https://github.com/sponsors), select **Get sponsored**, and choose your personal account.
+2. Follow GitHub's eligibility and contact-information steps. Availability depends on the region you live in.
+3. Complete the developer profile and sponsorship options. Choose payout arrangements carefully; use GitHub's own bank/tax forms.
+4. Enable two-factor authentication and submit the profile for GitHub's approval.
+5. Once approved, confirm the profile is live, update this status and README, and change `.github/FUNDING.yml` to:
+
+```yaml
+github: [Kavishcan]
+```
+
+At that point the project's funding button can link directly to the approved profile. Keep account, identity, banking, and tax details in GitHub's onboarding flow, not repository files or issues.
+
+Official guidance: [Personal account setup](https://docs.github.com/en/sponsors/receiving-sponsorships-through-github-sponsors/setting-up-github-sponsors-for-your-personal-account) · [Repository sponsor button](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository).
 
 ---
 

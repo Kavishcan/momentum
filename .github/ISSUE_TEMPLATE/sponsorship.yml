@@ -1,12 +1,11 @@
 name: Sponsorship enquiry
-description: Discuss supporting Momentum or public acknowledgement.
+description: Discuss supporting Momentum while payment setup is pending.
 title: "[Sponsorship] "
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for your interest in supporting Momentum. For one-time or monthly support, visit https://github.com/sponsors/Kavishcan.
-        Use this form for sponsorship questions or acknowledgement enquiries; it is not a checkout.
+        Thanks for your interest in supporting Momentum. GitHub Sponsors setup is pending; this form is not a checkout.
         This enquiry is public. Leave out banking, tax, payment, and private contact details.
   - type: input
     id: project
