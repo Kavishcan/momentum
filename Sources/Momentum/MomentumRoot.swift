@@ -7,35 +7,56 @@ struct MomentumRoot: View {
     @Environment(\.openWindow) private var openWindow
     var body: some View {
         HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 24) {
-                Label("Momentum", systemImage: "circle.lefthalf.filled").font(.system(size: 18, weight: .semibold))
-                    .padding(.bottom, 12)
-                ForEach(WorkspacePage.allCases) { page in
-                    Button { workspace.page = page } label: {
-                        Label(page.rawValue, systemImage: page.symbol)
-                            .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 12).padding(.vertical, 11)
-                            .background(workspace.page == page ? Color.primary.opacity(0.08) : .clear,
-                                        in: RoundedRectangle(cornerRadius: 8))
-                    }.buttonStyle(.plain).accessibilityAddTraits(workspace.page == page ? .isSelected : [])
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 10) {
+                    MomentumMark()
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Momentum").font(.system(size: 14, weight: .semibold))
+                        Text("Personal workspace").font(.system(size: 11)).foregroundStyle(.secondary)
+                    }
+                }.padding(.horizontal, 12).padding(.top, 24).padding(.bottom, 30)
+                Text("WORKSPACE").font(.system(size: 10, weight: .medium)).tracking(0.8)
+                    .foregroundStyle(.secondary).padding(.horizontal, 12).padding(.bottom, 10)
+                VStack(spacing: 3) {
+                    ForEach(WorkspacePage.allCases) { page in
+                        SidebarPageButton(page: page, selected: workspace.page == page) { workspace.page = page }
+                    }
                 }
                 Spacer()
-                Text("Small steps.\nA calmer finish.").font(.callout).foregroundStyle(.secondary).lineSpacing(4)
-            }.padding(20).frame(width: 188)
+                Divider().padding(.bottom, 14)
+                Label("On this Mac", systemImage: "internaldrive")
+                    .font(.system(size: 11)).foregroundStyle(.secondary).padding(.horizontal, 12)
+                Text("Small steps, every day.").font(.system(size: 11)).foregroundStyle(.secondary)
+                    .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 18)
+            }.padding(.horizontal, 12).frame(width: 212).frame(maxHeight: .infinity)
+                .background(MomentumTheme.sidebar)
             Divider()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 26) {
-                    switch workspace.page {
-                    case .today: TodayView(store: workspace.store, focus: workspace.focus)
-                    case .shutdown: NightView(store: workspace.store, reminders: workspace.reminders)
-                    case .history: HistoryView(store: workspace.store)
-                    case .settings: DataSettingsView(store: workspace.store)
-                    }
-                }.padding(28).frame(maxWidth: .infinity, alignment: .topLeading)
-            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            VStack(spacing: 0) {
+                HStack(spacing: 8) {
+                    Text("Momentum").foregroundStyle(.secondary)
+                    Text("/").foregroundStyle(.tertiary)
+                    Label(workspace.page.rawValue, systemImage: workspace.page.symbol)
+                    Spacer()
+                    Button { workspace.activate() } label: { Image(systemName: "arrow.clockwise") }
+                        .buttonStyle(.plain).help("Refresh your workspace").accessibilityLabel("Refresh workspace")
+                }.font(.system(size: 12)).padding(.horizontal, 24).frame(height: 44)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 32) {
+                        switch workspace.page {
+                        case .today: TodayView(store: workspace.store, focus: workspace.focus)
+                        case .shutdown: NightView(store: workspace.store, reminders: workspace.reminders)
+                        case .history: HistoryView(store: workspace.store)
+                        case .settings: DataSettingsView(store: workspace.store)
+                        }
+                    }.padding(.horizontal, 32).padding(.top, 28).padding(.bottom, 48)
+                        .frame(maxWidth: 960, alignment: .topLeading).frame(maxWidth: .infinity)
+                }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
         .frame(minWidth: 840, minHeight: 620)
+        .foregroundStyle(MomentumTheme.ink)
         .background(MomentumTheme.canvas)
-        .tint(.primary)
+        .tint(MomentumTheme.ink)
         .onAppear { workspace.activate() }
         .onReceive(NotificationCenter.default.publisher(for: .momentumOpenNight)) { _ in
             workspace.page = .shutdown; openWindow(id: "dashboard")
@@ -54,13 +75,36 @@ struct WorkspaceErrorPresenter: ViewModifier {
         message: { Text(store.errorMessage ?? focus.errorMessage ?? "") }
     }
 }
+struct SidebarPageButton: View {
+    let page: WorkspacePage
+    let selected: Bool
+    let action: () -> Void
+    @State private var hovered = false
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: page.symbol).frame(width: 18).foregroundStyle(.secondary)
+                Text(page.rawValue).font(.system(size: 13, weight: selected ? .medium : .regular))
+                Spacer(minLength: 0)
+            }.padding(.horizontal, 12).frame(height: 34)
+                .background(selected ? MomentumTheme.selection : (hovered ? MomentumTheme.hover : .clear),
+                            in: RoundedRectangle(cornerRadius: 5))
+                .contentShape(Rectangle())
+        }.buttonStyle(.plain).onHover { hovered = $0 }
+            .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
 struct PageHeading: View {
     let title: String
     let subtitle: String
+    var symbol: String = "doc.text"
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.system(size: 30, weight: .semibold))
-            Text(subtitle).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 12) {
+            Image(systemName: symbol).font(.system(size: 34, weight: .light))
+                .foregroundStyle(MomentumTheme.ink).frame(height: 44).accessibilityHidden(true)
+            Text(title).font(.system(size: 36, weight: .bold)).tracking(-0.7)
+            Text(subtitle).font(.system(size: 14)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
@@ -71,12 +115,11 @@ struct TodayView: View {
     @State private var editing: MomentumTask?
     @State private var selectedID: UUID?
     var body: some View {
-        PageHeading(title: "A little progress, on purpose.",
-                    subtitle: Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()))
-        HStack(alignment: .top, spacing: 20) {
+        PageHeading(title: "Today", subtitle: Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()), symbol: "calendar")
+        HStack(alignment: .top, spacing: 28) {
             Card {
                 HStack {
-                    Text("Daily Three").font(.title3.weight(.semibold))
+                    Text("Daily Three").font(.system(size: 16, weight: .semibold))
                     Spacer()
                     Text("\(store.tasks.filter(\.isComplete).count)/3 complete").font(.caption).foregroundStyle(.secondary)
                 }
@@ -88,8 +131,8 @@ struct TodayView: View {
                 ForEach(store.tasks) { task in
                     HStack(alignment: .center, spacing: 10) {
                         Button { store.toggle(task) } label: {
-                            Image(systemName: task.isComplete ? "checkmark.circle.fill" : "circle")
-                                .font(.title3).frame(width: 30, height: 36)
+                            Image(systemName: task.isComplete ? "checkmark.square.fill" : "square")
+                                .font(.system(size: 17)).frame(width: 26, height: 36)
                         }.buttonStyle(.plain).accessibilityLabel("\(task.isComplete ? "Uncomplete" : "Complete") \(task.title)")
                         Text(task.title).strikethrough(task.isComplete)
                             .foregroundStyle(task.isComplete ? .secondary : .primary)
@@ -104,19 +147,22 @@ struct TodayView: View {
                     }
                     Divider()
                 }
-                TextField("What’s your next small step?", text: $newTask)
-                    .textFieldStyle(.roundedBorder).onSubmit(add)
-                    .accessibilityIdentifier("daily-task-input").disabled(store.tasks.count >= 3)
-                HStack {
-                    Text("\(store.tasks.count)/3 tasks").font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Add task", action: add)
-                        .disabled(newTask.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || store.tasks.count >= 3)
+                if store.tasks.count < 3 {
+                    HStack(spacing: 10) {
+                        Image(systemName: "plus").foregroundStyle(.secondary).frame(width: 26)
+                        TextField("Add a task…", text: $newTask).textFieldStyle(.plain).onSubmit(add)
+                            .accessibilityLabel("New daily task").accessibilityIdentifier("daily-task-input")
+                        Button("Add", action: add).controlSize(.small)
+                            .disabled(newTask.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }.padding(.vertical, 8)
+                } else {
+                    Text("Three priorities. That’s enough for today.").font(.callout).foregroundStyle(.secondary)
                 }
+                Divider()
             }.frame(minWidth: 260, maxWidth: .infinity)
-            FocusPanel(store: store, focus: focus, selectedID: $selectedID).frame(width: 272)
+            FocusPanel(store: store, focus: focus, selectedID: $selectedID).frame(width: 244)
         }
-        Label("Everything is saved on this Mac. Come back whenever you’re ready.", systemImage: "internaldrive")
+        Label("One small step is enough to begin.", systemImage: "leaf")
             .font(.callout).foregroundStyle(.secondary)
         .sheet(item: $editing) { task in
             EditTextSheet(title: "Edit task", initialValue: task.title, onSave: {
@@ -133,8 +179,8 @@ struct FocusPanel: View {
     @Binding var selectedID: UUID?
     @State private var confirmEnd = false
     var body: some View {
-        Card {
-            Label("Just Start", systemImage: "timer").font(.title3.weight(.semibold))
+        Card(style: .callout) {
+            Label("Just Start", systemImage: "timer").font(.system(size: 15, weight: .semibold))
             if focus.session.phase == .idle {
                 Text("You only need to begin.").foregroundStyle(.secondary)
                 Picker("Focus on", selection: $selectedID) {
@@ -142,7 +188,7 @@ struct FocusPanel: View {
                     ForEach(store.tasks) { Text($0.title).tag(Optional($0.id)) }
                 }.pickerStyle(.menu)
                 Button("Start 10 minutes") { start(10) }.buttonStyle(PrimaryButtonStyle())
-                Button("Start 25 minutes") { start(25) }.frame(maxWidth: .infinity)
+                Button("Start 25 minutes") { start(25) }.buttonStyle(DocumentButtonStyle())
             } else {
                 Text(focus.session.taskTitle).font(.headline).fixedSize(horizontal: false, vertical: true)
                 Text(focus.session.clockText(at: focus.now))
@@ -183,8 +229,8 @@ struct NightView: View {
                 set: { draft.hour = Calendar.current.component(.hour, from: $0); draft.minute = Calendar.current.component(.minute, from: $0) })
     }
     var body: some View {
-        PageHeading(title: "Land the day.", subtitle: "Make the next choice easy. Park your phone away from bed and give yourself permission to stop.")
-        Card {
+        PageHeading(title: "Night Shutdown", subtitle: "A small ritual to close the day.", symbol: "moon")
+        Card(style: .callout) {
             Text("Your evening reminder").font(.title3.weight(.semibold))
             Toggle("Remind me to wind down", isOn: $draft.enabled)
             DatePicker("At", selection: time, displayedComponents: .hourAndMinute).disabled(!draft.enabled)
@@ -205,7 +251,7 @@ struct NightView: View {
             ForEach(store.steps) { step in
                 HStack {
                     Button { store.toggle(step) } label: {
-                        Image(systemName: step.isComplete ? "checkmark.circle.fill" : "circle").font(.title3).frame(width: 32, height: 36)
+                        Image(systemName: step.isComplete ? "checkmark.square.fill" : "square").font(.title3).frame(width: 32, height: 36)
                     }.buttonStyle(.plain).accessibilityLabel("\(step.isComplete ? "Uncheck" : "Complete") \(step.title)")
                     Text(step.title).strikethrough(step.isComplete).frame(maxWidth: .infinity, alignment: .leading)
                     Button { editing = step } label: { Image(systemName: "pencil").frame(width: 32, height: 36) }

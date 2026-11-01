@@ -1,4 +1,4 @@
-# Momentum 0.2 architecture
+# Momentum architecture
 
 ## App structure
 
@@ -70,6 +70,8 @@ Daily tasks use Gregorian `yyyy-MM-dd` in the current Mac timezone. A new day st
 The SQLite backup API includes live committed WAL pages. Export finalizes the destination in DELETE journal mode so the snapshot can be opened read-only without missing sidecars. Export cannot replace the active database or a file in its folder. The save panel stages a snapshot and then moves/replaces the user-selected destination. There is no automatic restore: documentation explains restoring to a fresh data directory while the app is quit.
 
 The build script compiles outside synced folders, assembles/ad-hoc signs a staged `.app`, verifies it, and archives that clean bundle before File Provider metadata can alter it. It swaps the visible bundle as a whole rather than overwriting a mapped executable. A running old instance still needs to be quit and reopened. Distribution is architecture-specific and not Developer ID signed or notarized.
+
+The 0.3 presentation uses a document-style canvas, separate sidebar/breadcrumb strip, flat task sections, and focused callout blocks. This changes no SQLite schema or stored records. An original vector-generated M icon is copied into the app before signing and declared in Info.plist; the generator and PNG/ICNS assets are included in the repository.
 
 ## Validation boundaries
 

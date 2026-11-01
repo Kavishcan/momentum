@@ -7,7 +7,7 @@ struct HistoryView: View {
     @State private var date = Date.now
     @State private var tasks: [MomentumTask] = []
     var body: some View {
-        PageHeading(title: "Progress, without the pressure.", subtitle: "Past tasks and the focus sessions you finished. No streaks to protect.")
+        PageHeading(title: "History", subtitle: "The small steps you’ve already taken.", symbol: "clock.arrow.circlepath")
         Card {
             HStack {
                 Text("Daily tasks").font(.title3.weight(.semibold)); Spacer()
@@ -51,7 +51,7 @@ struct DataSettingsView: View {
     @ObservedObject var store: MomentumStore
     @State private var status = ""
     var body: some View {
-        PageHeading(title: "Yours, on this Mac.", subtitle: "Keep a backup, check your data, and make Momentum feel at home.")
+        PageHeading(title: "Settings", subtitle: "Your workspace, your preferences.", symbol: "slider.horizontal.3")
         Card {
             Label("Local storage", systemImage: "internaldrive").font(.title3.weight(.semibold))
             Text("Tasks, settings, routines, and focus sessions are saved automatically in one local SQLite database. No account or cloud service is required.")
@@ -76,7 +76,7 @@ struct DataSettingsView: View {
             Label("Open the window again from the menu bar or Dock.", systemImage: "macwindow")
             Label("Notifications need macOS permission; Focus may silence them.", systemImage: "bell")
             Label("The appearance follows your Mac’s light or dark setting.", systemImage: "circle.lefthalf.filled")
-            Text("Momentum 0.2.0 · Local development build").font(.caption).foregroundStyle(.secondary)
+            Text("Momentum 0.3.0 · Local development build").font(.caption).foregroundStyle(.secondary)
         }
     }
     private func backup() {
@@ -113,7 +113,7 @@ struct MomentumMenu: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Label("Momentum", systemImage: "circle.lefthalf.filled").font(.headline); Spacer()
+                HStack(spacing: 8) { MomentumMark(size: 20); Text("Momentum").font(.headline) }; Spacer()
                 Text("\(store.tasks.filter(\.isComplete).count)/\(store.tasks.count) done").font(.caption).foregroundStyle(.secondary)
             }
             if focus.session.phase != .idle {

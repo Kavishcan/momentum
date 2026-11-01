@@ -6,7 +6,7 @@ A native, local-first macOS app for your Daily Three, 10/25-minute focus session
 
 ## Open the app
 
-Quit any older Momentum instance first, then open `build/Momentum.app`. Version 0.2 opens a normal window and appears in the Dock. The half-filled circle in the menu bar provides quick controls and **Open Momentum**. Closing the window keeps the timer running; quitting preserves the active deadline or paused remainder for next launch.
+Quit any older Momentum instance first, then open `build/Momentum.app`. Version 0.3 opens a normal window and appears in the Dock. The M-square icon in the menu bar provides quick controls and **Open Momentum**. Closing the window keeps the timer running; quitting preserves the active deadline or paused remainder for next launch.
 
 For a prebuilt ZIP, extract it outside a cloud-synced folder and open the extracted `Momentum.app`. Local builds are ad-hoc signed, not notarized. The archive is built for the machine's architecture, not universally for both Intel and Apple Silicon.
 
@@ -24,6 +24,12 @@ open build/Momentum.app
 
 `Package.swift` opens in Xcode for development. The build script uses a temporary compiler directory to avoid File Provider signing metadata and packages `build/Momentum-macos-arm64.zip` on Apple Silicon (or `x86_64` on Intel). `MOMENTUM_BUILD_PATH` overrides the compiler directory. Use the app bundle rather than `swift run` for notification identity.
 
+## Appearance and icon
+
+Version 0.3 has a Notion-inspired document layout: a warm neutral sidebar, breadcrumbs, page symbols, flat task lists, square checkboxes, and small focus/reminder callouts. Light/dark appearance follows macOS. Momentum has its own original M icon for Finder and the Dock, with a matching sidebar mark.
+
+The app icon is included in normal builds. To regenerate it on macOS: `swift scripts/generate-icon.swift Resources`.
+
 ## What works
 
 - **Today:** add up to three tasks, complete/uncomplete, edit, delete, or start a 10-minute session from a task. Completed tasks still count toward three.
@@ -36,7 +42,7 @@ All tasks, routine checks, preferences, timer state, and completed sessions live
 
 ## Upgrade from 0.1
 
-The first 0.2 launch snapshots the old `Momentum.store` using SQLite's backup API, reads a disposable working copy through SwiftData, and imports tasks, routine, reminder preferences, and the active timer in one transaction. The original store and defaults remain intact. A migration marker prevents repeated imports; failed imports roll back. Once using 0.2, keep using the new app so changes made in an old copy do not diverge from the new database.
+The first launch of 0.2 or later snapshots the old `Momentum.store` using SQLite's backup API, reads a disposable working copy through SwiftData, and imports tasks, routine, reminder preferences, and the active timer in one transaction. The original store and defaults remain intact. A migration marker prevents repeated imports; failed imports roll back. Once upgraded, keep using the new app so changes made in an old copy do not diverge from the new database.
 
 ## Reminders
 

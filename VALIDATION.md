@@ -1,4 +1,4 @@
-# Momentum 0.2 validation
+# Momentum validation
 
 Date: 1 November 2026. Local platform: Apple Silicon, Xcode 27.0 / Swift 6.4 in Swift 5 language mode. Deployment target: macOS 14.0.
 
@@ -33,3 +33,9 @@ The release bundle and ZIP are built by `scripts/build-app.sh`; the clean staged
 Live desktop automation is unavailable for reliable interactive verification in this session. Displayed notification banners, actual OS permission dialogs, real sleep/wake, VoiceOver, and global keyboard interaction have not been manually certified. OS notification behavior can be silenced by Focus and system preferences. The development build is ad-hoc signed and not notarized; Intel hardware and a fresh macOS 14 installation have not been exercised locally.
 
 The old 0.1 implementation passed narrower core tests but suffered a collapsed popover layout. Version 0.2 adds a normal main window, keeps the menu compact, unifies app state in SQLite, and expands testing to cover persistence failures, migration, and cross-feature workflows. Passing tests do not imply the remaining OS-level checks were completed.
+
+## Version 0.3 visual update
+
+The interface was restyled toward a Notion-inspired document workspace. All 35 existing checks passed again, including the isolated legacy migration case. Updated native renderings were inspected in light/dark appearance, with long task titles and at minimum window size. No database schema or persistence logic changed.
+
+The original M icon was generated from Core Graphics paths and packaged as a multi-resolution ICNS file, with a 1024 px PNG preview. Icon generation was completed using the standard macOS icon tools. The app bundle is verified after packaging, including its declared icon resource. Live Dock/Finder icon refresh depends on closing the older app instance and reopening the rebuilt bundle.

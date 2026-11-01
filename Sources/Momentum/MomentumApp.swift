@@ -74,7 +74,7 @@ struct MomentumApp: App {
                 }.padding(32).frame(width: 600)
             }
         }
-        .defaultSize(width: 980, height: 720)
+        .defaultSize(width: 1060, height: 760)
         .windowResizability(.contentMinSize)
         MenuBarExtra {
             if let workspace = runtime.workspace { MomentumMenu(workspace: workspace) }
@@ -87,14 +87,14 @@ struct MenuLabel: View {
     let workspace: Workspace?
     var body: some View {
         if let focus = workspace?.focus { FocusMenuLabel(focus: focus) }
-        else { Label("Momentum", systemImage: "circle.lefthalf.filled") }
+        else { Label("Momentum", systemImage: "m.square") }
     }
 }
 struct FocusMenuLabel: View {
     @ObservedObject var focus: FocusController
     var body: some View {
         Label(focus.session.phase == .running ? focus.session.clockText(at: focus.now) : "Momentum",
-              systemImage: focus.session.phase == .finished ? "checkmark.circle" : "circle.lefthalf.filled")
+              systemImage: focus.session.phase == .finished ? "checkmark.circle" : "m.square")
             .monospacedDigit()
     }
 }
