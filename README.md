@@ -15,7 +15,7 @@
   <a href="docs/PRIVACY.md">Privacy</a> ·
   <a href="CONTRIBUTING.md">Contributing</a> ·
   <a href="SECURITY.md">Security</a> ·
-  <a href="SPONSORS.md">Sponsor this project</a>
+  <a href="https://github.com/sponsors/Kavishcan">Sponsor this project</a>
 </p>
 
 <p align="center">
@@ -39,8 +39,8 @@
       <br>
       <strong>Help keep Momentum moving.</strong><br>
       Support careful maintenance, accessible native design, and better Mac releases.<br><br>
-      <a href="SPONSORS.md"><strong>Explore sponsorship →</strong></a><br>
-      <sub>GitHub Sponsors setup is pending. No direct payments are enabled yet.</sub><br><br>
+      <a href="https://github.com/sponsors/Kavishcan"><strong>Sponsor on GitHub →</strong></a><br>
+      <sub>One-time and monthly support · <a href="SPONSORS.md">Sponsorship details</a></sub><br><br>
     </td>
   </tr>
 </table>
@@ -127,7 +127,7 @@ The [contributing guide](CONTRIBUTING.md) covers the source layout, tests, data 
 - [Get support](SUPPORT.md).
 - [Report a security issue privately](SECURITY.md).
 - [Contribute code, documentation, or feedback](CONTRIBUTING.md).
-- [Sponsor Momentum](SPONSORS.md), or help by testing a release and sharing clear feedback.
+- [Sponsor my work on GitHub](https://github.com/sponsors/Kavishcan), or help by testing a release and sharing clear feedback.
 
 Momentum is early in development. Suggestions and focused fixes are welcome. It supports intentional routines; it does not block iPhone/Mac apps, control Screen Time, or enforce bedtime.
 
